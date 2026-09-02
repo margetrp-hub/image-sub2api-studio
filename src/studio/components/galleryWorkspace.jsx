@@ -13,6 +13,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   Copy,
+  ChevronDown,
+  ChevronUp,
   Download,
   Filter,
   History,
@@ -283,7 +285,7 @@ function VideoInspirationCard({ item, selected, onSelect }) {
   );
 }
 
-function HistoryCard({ item, selected, onSelect, onDelete, t = (key, fallback) => fallback || key }) {
+function HistoryCard({ item, selected, onSelect, onDelete, onShare, t = (key, fallback) => fallback || key }) {
   const resultItems = historyResultItems(item);
   const resultUrl = resultItems[0]?.displayUrl || resultItems[0]?.url || item.displayResultUrls?.[0] || item.resultUrls?.[0] || '';
   const thumbnail = safeImageCandidate(resultUrl || item.case?.image || '');
@@ -325,10 +327,51 @@ function HistoryCard({ item, selected, onSelect, onDelete, t = (key, fallback) =
             <Download size={14} /> {t('canvas.download', '下载')}
           </a>
         ) : null}
+        {resultUrl && onShare ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onShare(resultUrl, 0, downloadMetaFromHistoryItem(item, isVideo));
+            }}
+            aria-label={t('lightbox.share', '分享到灵感库')}
+            title={t('lightbox.share', '分享到灵感库')}
+          >
+            <Share2 size={14} /> {t('lightbox.share', '分享')}
+          </button>
+        ) : null}
         <button type="button" onClick={() => onDelete(item)}>
           <Trash2 size={14} /> {t('canvas.delete', '删除')}
         </button>
       </div>
+    </div>
+  );
+}
+
+function HistoryPromptDisclosure({ prompt, t = (key, fallback) => fallback || key }) {
+  const [expanded, setExpanded] = useState(false);
+  const value = String(prompt || '').trim();
+  if (!value) {
+    return <p className="promptEmptyText">{t('gallery.promptUnavailable', '暂无可用提示词')}</p>;
+  }
+  return (
+    <div className={`historyPromptDisclosure ${expanded ? 'isExpanded' : ''}`}>
+      <button
+        type="button"
+        className="historyPromptToggle"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((current) => !current)}
+      >
+        <span>{expanded ? t('gallery.collapsePrompt', '收起完整提示词') : t('gallery.expandPrompt', '查看完整提示词')}</span>
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {expanded ? (
+        <div className="historyPromptExpanded">
+          <PromptSectionList prompt={value} t={t} />
+        </div>
+      ) : (
+        <p className="historyPromptExcerpt">{compact(value, 280)}</p>
+      )}
     </div>
   );
 }
@@ -363,7 +406,7 @@ function HistoryDetailPanel({ item, onOpenWorkspace, onShare, t = (key, fallback
             {promptItems.slice(0, 6).map((result, index) => (
               <article className="historyPromptItem" key={result.id || `${result.displayUrl || result.url || 'prompt'}-${index}`}>
                 <strong>#{index + 1}</strong>
-                <PromptSectionList prompt={result.generationPrompt || result.prompt || item.generationPrompt || item.prompt} t={t} />
+                <HistoryPromptDisclosure prompt={result.generationPrompt || result.prompt || item.generationPrompt || item.prompt} t={t} />
               </article>
             ))}
           </div>
@@ -556,6 +599,7 @@ export function GalleryWorkspacePanel({
                 selected={selectedHistoryId === item.id || selectedHistoryId === item.sessionId}
                 onSelect={onSelectHistory}
                 onDelete={onDeleteHistory}
+                onShare={handleGalleryShare}
                 t={t}
                 key={item.id}
               />

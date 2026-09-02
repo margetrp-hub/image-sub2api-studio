@@ -467,6 +467,117 @@ textarea:focus {
   overflow-wrap: anywhere !important;
 }
 
+.historyGalleryGrid {
+  align-items: start !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)) !important;
+}
+
+.historyGalleryGrid .historyTile {
+  min-height: 188px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.historyGalleryGrid .historyOpen {
+  min-height: 126px !important;
+  grid-template-columns: 126px minmax(0, 1fr) !important;
+}
+
+.historyGalleryGrid .historyThumb {
+  width: 126px !important;
+  height: 126px !important;
+  min-width: 126px !important;
+}
+
+.historyGalleryGrid .historyActions {
+  margin-top: auto !important;
+}
+
+.historyPromptDisclosure {
+  display: grid;
+  gap: 8px;
+}
+
+.historyPromptToggle {
+  width: fit-content;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--studio-primary) 26%, var(--studio-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--studio-primary) 7%, var(--studio-surface-strong));
+  color: var(--studio-primary);
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.historyPromptExcerpt {
+  max-height: 76px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--studio-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.historyPromptExpanded {
+  max-height: min(360px, 42dvh);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+@media (min-width: 861px) {
+  /* Empty sessions only need a compact prompt row and the parameter summary. */
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.noThread,
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.isEmptyComposer {
+    height: min(390px, calc(100dvh - 72px)) !important;
+    min-height: min(350px, calc(100dvh - 72px)) !important;
+    max-height: min(390px, calc(100dvh - 72px)) !important;
+    grid-template-rows: 42px minmax(190px, 1fr) 46px !important;
+  }
+
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.noThread.paramsExpanded:has(.composerParamShelf.isExpanded),
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.isEmptyComposer.paramsExpanded:has(.composerParamShelf.isExpanded) {
+    height: min(480px, calc(100dvh - 64px)) !important;
+    min-height: min(420px, calc(100dvh - 64px)) !important;
+    max-height: min(480px, calc(100dvh - 64px)) !important;
+    grid-template-rows: 42px minmax(190px, 1fr) minmax(118px, auto) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.noThread,
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.isEmptyComposer {
+    height: min(360px, calc(100dvh - 28px)) !important;
+    min-height: min(320px, calc(100dvh - 28px)) !important;
+    max-height: min(360px, calc(100dvh - 28px)) !important;
+    grid-template-rows: 42px minmax(150px, 1fr) minmax(46px, auto) !important;
+  }
+
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.noThread.paramsExpanded:has(.composerParamShelf.isExpanded),
+  .studioLayout .creationDesk.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.bottomComposerBar.codexComposerPanel.isExpandedComposer.isEmptyComposer.paramsExpanded:has(.composerParamShelf.isExpanded) {
+    height: min(430px, calc(100dvh - 20px)) !important;
+    min-height: min(380px, calc(100dvh - 20px)) !important;
+    max-height: min(430px, calc(100dvh - 20px)) !important;
+    grid-template-rows: 42px minmax(150px, 1fr) minmax(118px, auto) !important;
+  }
+}
+
+.studioLayout .creationDesk.composerOpen.composerFolded .bottomComposerBar.codexComposerPanel .bottomComposerInput textarea {
+  box-sizing: border-box !important;
+  height: 62px !important;
+  min-height: 62px !important;
+  max-height: 62px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--studio-muted) 34%, transparent) transparent;

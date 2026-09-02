@@ -1,7 +1,7 @@
 {
   "name": "image-agent-studio",
   "private": true,
-  "version": "1.0.22",
+  "version": "1.0.23",
   "type": "module",
   "scripts": {
     "check:deploy": "node scripts/check-deploy-config.mjs",
