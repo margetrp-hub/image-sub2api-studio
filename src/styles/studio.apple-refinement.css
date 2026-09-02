@@ -340,6 +340,18 @@ textarea:focus {
   }
 }
 
+.studioLayout .creationDesk.canvasFlowMode .canvasQueueDock:not(.isPositioned) {
+  left: auto !important;
+  right: calc(var(--workbench-side-reserved, 0px) + 72px) !important;
+  top: 124px !important;
+}
+
+.studioLayout .creationDesk.canvasFlowMode:not(.referencesOpen) .canvasQueueDock.isPositioned {
+  left: auto !important;
+  right: calc(var(--workbench-side-reserved, 0px) + 72px) !important;
+  top: 124px !important;
+}
+
 .lightboxOverlay {
   background: rgba(0, 0, 0, 0.28) !important;
   backdrop-filter: blur(12px);

@@ -408,6 +408,9 @@ async function runScenario(browser, baseUrl, files, viewport, name, options = {}
     assert(result.toolbarComposerOverlap <= 4, `${name}: canvas zoom toolbar overlaps the composer panel.`, result);
     assert(result.toolbarQueueOverlap <= 4, `${name}: canvas zoom toolbar overlaps the generation queue.`, result);
   }
+  if (result.rects.queueDock && result.rects.referencePanel) {
+    assert(result.referenceQueueOverlap <= 4, `${name}: generation queue overlaps the reference panel control.`, result);
+  }
   if (result.viewport.width >= 1000) {
     assert(
       result.rects.composer.width >= (referencesOpen ? 700 : 820),
