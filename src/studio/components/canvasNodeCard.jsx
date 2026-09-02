@@ -4,7 +4,7 @@
 // business logic and state ownership. Geometry helpers come from
 // canvasGeometry.js, asset/download helpers from the shared util modules.
 
-import { Copy, Download, ImageIcon, Ratio, Redo2, Search, Shuffle, Sparkles, SquarePen, Trash2, X } from 'lucide-react';
+import { Copy, Download, ImageIcon, Ratio, Redo2, Search, Share2, Shuffle, Sparkles, SquarePen, Trash2, X } from 'lucide-react';
 
 import { ProtectedStudioImage } from './media.jsx';
 import { displayResultUrl } from '../util/assets.js';
@@ -80,6 +80,7 @@ export function CanvasNodeCard({
   onEditorPromptChange,
   onEditorModeChange,
   onPreview,
+  onShare,
   onSetAsReference,
   onCopyPrompt,
   onDelete,
@@ -193,6 +194,11 @@ export function CanvasNodeCard({
         <a href={displayResultUrl(node.url)} download={nodeDownloadName} aria-label={`${t('canvas.download', '下载')} #${node.canvasIndex || ''}`} title={t('canvas.download', '下载')}>
           <Download size={13} />
         </a>
+        {onShare ? (
+          <button type="button" onClick={() => onShare(node.url, nodeIndex, node.downloadMeta || currentDownloadMeta)} aria-label={`${t('canvas.shareResult', '分享生成结果')} #${node.canvasIndex || ''}`} title={t('canvas.shareResult', '分享生成结果')}>
+            <Share2 size={13} />
+          </button>
+        ) : null}
         <button type="button" onClick={() => onDelete(node)} aria-label={`${t('canvas.delete', '删除')} #${node.canvasIndex || ''}`} title={t('canvas.delete', '删除')}>
           <Trash2 size={13} />
         </button>

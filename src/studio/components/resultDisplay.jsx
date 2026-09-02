@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Copy, Download, ImageIcon, Video, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Download, ImageIcon, Share2, Video, X } from 'lucide-react';
 import '../../styles/studio.prompt-lightbox.css';
 import { PromptSectionList } from './promptTools.jsx';
 import { ProtectedStudioImage } from './media.jsx';
@@ -12,7 +12,7 @@ import {
 } from '../util/resultFiles.js';
 import { displayResultUrl } from '../util/assets.js';
 
-export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, outputFormat = 'png', downloadMeta, onClose, t = (key, fallback) => fallback || key }) {
+export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, outputFormat = 'png', downloadMeta, onClose, onShare, t = (key, fallback) => fallback || key }) {
   if (!url && !promptOnly) return null;
   const isReferencePreview = downloadMeta?.mode === 'reference' || downloadMeta?.mode === 'library-reference';
   const extension = resultExtension(url || 'prompt.txt', outputFormat);
@@ -22,7 +22,7 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
     index,
     extension
   });
-  const promptText = downloadMeta?.prompt || downloadMeta?.generationPrompt || '';
+  const promptText = downloadMeta?.generationPrompt || downloadMeta?.prompt || '';
   const displayUrl = url ? displayResultUrl(url) : '';
   const meta = [
     downloadMeta?.providerId,
@@ -63,12 +63,20 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
               <span>{isReferencePreview ? t('references.preview', '查看参考图') : t('lightbox.promptLabel', '完整提示词')}</span>
               <strong>{isReferencePreview ? referenceLabel : `#${index + 1}`}</strong>
             </div>
+            <div className="lightboxPromptActions">
             {promptText ? (
               <button type="button" onClick={() => navigator.clipboard?.writeText(promptText)}>
                 <Copy size={14} />
                 {t('lightbox.copyPrompt', '复制')}
               </button>
             ) : null}
+              {onShare && !promptOnly ? (
+                <button type="button" onClick={() => onShare(url, index, downloadMeta)}>
+                  <Share2 size={14} />
+                  {t('lightbox.share', '分享')}
+                </button>
+              ) : null}
+            </div>
           </div>
           {meta.length ? (
             <div className="lightboxMetaChips">
@@ -121,7 +129,7 @@ export function VideoLightbox({ url, index = 0, downloadMeta, onClose, t = (key,
   );
 }
 
-export function ResultGrid({ urls, featured = false, carousel = false, outputFormat = 'png', downloadMeta, onPreview, t = (key, fallback) => fallback || key }) {
+export function ResultGrid({ urls, featured = false, carousel = false, outputFormat = 'png', downloadMeta, onPreview, onShare, t = (key, fallback) => fallback || key }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
@@ -148,7 +156,7 @@ export function ResultGrid({ urls, featured = false, carousel = false, outputFor
           <button type="button" className="resultPreviewButton" onClick={() => onPreview(url, index)}>
             <img src={url} alt={`${t('lightbox.imageAlt', '生成结果')} ${index + 1}`} />
           </button>
-          <a href={url} download={buildStudioDownloadFilename({
+          <a className="resultDownloadButton" href={url} download={buildStudioDownloadFilename({
             ...(downloadMeta || {}),
             mode: 'image',
             index,
@@ -157,6 +165,20 @@ export function ResultGrid({ urls, featured = false, carousel = false, outputFor
             <Download size={16} />
             {t('canvas.download', '下载')}
           </a>
+          {onShare ? (
+            <button
+              type="button"
+              className="resultShareButton"
+              onClick={(event) => {
+                event.stopPropagation();
+                onShare(url, index, downloadMeta);
+              }}
+              aria-label={t('canvas.shareResult', '分享生成结果')}
+              title={t('canvas.shareResult', '分享生成结果')}
+            >
+              <Share2 size={16} />
+            </button>
+          ) : null}
         </figure>
       ))}
       {carouselEnabled ? (
@@ -191,7 +213,7 @@ export function ResultGrid({ urls, featured = false, carousel = false, outputFor
   );
 }
 
-export function VideoResultGrid({ urls, downloadMeta, onPreview, t = (key, fallback) => fallback || key }) {
+export function VideoResultGrid({ urls, downloadMeta, onPreview, onShare, t = (key, fallback) => fallback || key }) {
   if (!urls.length) {
     return (
       <div className="emptyResult">
@@ -207,7 +229,7 @@ export function VideoResultGrid({ urls, downloadMeta, onPreview, t = (key, fallb
           <button type="button" className="resultPreviewButton" onClick={() => onPreview(url, index)}>
             <video src={url} muted playsInline preload="metadata" />
           </button>
-          <a href={url} download={buildStudioDownloadFilename({
+          <a className="resultDownloadButton" href={url} download={buildStudioDownloadFilename({
             ...(downloadMeta || {}),
             mode: 'video',
             index,
@@ -216,13 +238,27 @@ export function VideoResultGrid({ urls, downloadMeta, onPreview, t = (key, fallb
             <Download size={16} />
             {t('canvas.download', '下载')}
           </a>
+          {onShare ? (
+            <button
+              type="button"
+              className="resultShareButton"
+              onClick={(event) => {
+                event.stopPropagation();
+                onShare(url, index, downloadMeta);
+              }}
+              aria-label={t('canvas.shareResult', '分享生成结果')}
+              title={t('canvas.shareResult', '分享生成结果')}
+            >
+              <Share2 size={16} />
+            </button>
+          ) : null}
         </figure>
       ))}
     </div>
   );
 }
 
-export function WorkPreviewResultActions({ url, index = 0, outputFormat = 'png', isVideo = false, downloadMeta, onPreview }) {
+export function WorkPreviewResultActions({ url, index = 0, outputFormat = 'png', isVideo = false, downloadMeta, onPreview, onShare, t = (key, fallback) => fallback || key }) {
   if (!url) return null;
   const extension = isVideo ? resultVideoExtension(url) : resultExtension(url, outputFormat);
   const downloadName = buildStudioDownloadFilename({
@@ -241,6 +277,12 @@ export function WorkPreviewResultActions({ url, index = 0, outputFormat = 'png',
         <Download size={15} />
         下载
       </a>
+      {onShare ? (
+        <button type="button" onClick={() => onShare(url, index, downloadMeta)} aria-label={t('canvas.shareResult', '分享生成结果')} title={t('canvas.shareResult', '分享生成结果')}>
+          <Share2 size={15} />
+          {t('lightbox.share', '分享')}
+        </button>
+      ) : null}
     </div>
   );
 }

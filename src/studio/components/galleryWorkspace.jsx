@@ -32,6 +32,7 @@ import '../../styles/studio.gallery-cards-responsive.css';
 
 import { compact, templateKey } from '../util/formatters.js';
 import { displayResultUrl } from '../util/assets.js';
+import { shareGenerationResult } from '../util/share.js';
 import { COMMUNITY_LICENSE_NOTICE } from '../util/library.js';
 import {
   groupHistorySessions,
@@ -300,7 +301,7 @@ function HistoryCard({ item, selected, onSelect, onDelete, t = (key, fallback) =
   );
 }
 
-function HistoryDetailPanel({ item, onOpenWorkspace, t = (key, fallback) => fallback || key }) {
+function HistoryDetailPanel({ item, onOpenWorkspace, onShare, t = (key, fallback) => fallback || key }) {
   if (!item) {
     return (
       <section className="workspaceEmptyPanel">
@@ -342,9 +343,9 @@ function HistoryDetailPanel({ item, onOpenWorkspace, t = (key, fallback) => fall
         </button>
       </div>
       {isVideo ? (
-        <VideoResultGrid urls={urls} downloadMeta={downloadMeta} onPreview={() => {}} t={t} />
+        <VideoResultGrid urls={urls} downloadMeta={downloadMeta} onPreview={() => {}} onShare={onShare} t={t} />
       ) : (
-        <ResultGrid urls={urls} outputFormat={item.outputFormat || 'png'} downloadMeta={downloadMeta} onPreview={() => {}} t={t} />
+        <ResultGrid urls={urls} outputFormat={item.outputFormat || 'png'} downloadMeta={downloadMeta} onPreview={() => {}} onShare={onShare} t={t} />
       )}
     </section>
   );
@@ -417,6 +418,20 @@ export function GalleryWorkspacePanel({
       || item.recordIds?.includes?.(selectedHistoryId)
     )) || null;
   }, [historySessionItems, isHistory, selectedHistoryId]);
+
+  async function handleGalleryShare(url, index, meta) {
+    try {
+      await shareGenerationResult({
+        url,
+        index,
+        outputFormat: meta?.outputFormat || 'png',
+        meta,
+        title: t('canvas.shareTitle', 'AI 生图')
+      });
+    } catch {
+      // Share cancellation is a normal browser action; the gallery has no status rail.
+    }
+  }
 
   useEffect(() => {
     setVisibleLimit(INITIAL_TEMPLATE_LIMIT);
@@ -531,7 +546,7 @@ export function GalleryWorkspacePanel({
           </div>
         )}
         {historyItems.length ? (
-          <HistoryDetailPanel item={selectedHistoryItem} onOpenWorkspace={onOpenWorkspace} t={t} />
+          <HistoryDetailPanel item={selectedHistoryItem} onOpenWorkspace={onOpenWorkspace} onShare={handleGalleryShare} t={t} />
         ) : null}
       </section>
     );

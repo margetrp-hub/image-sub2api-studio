@@ -1,7 +1,7 @@
 {
   "name": "image-agent-studio-service",
   "private": true,
-  "version": "1.0.18",
+  "version": "1.0.19",
   "type": "module",
   "engines": {
     "node": ">=22"

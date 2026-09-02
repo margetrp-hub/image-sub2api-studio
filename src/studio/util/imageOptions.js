@@ -8,6 +8,7 @@ export const SIZES = Object.freeze(['auto', '1024x1024', '1536x1024', '1024x1536
 
 export const ASPECT_OPTIONS = Object.freeze([
   { value: '1:1', label: '1:1', size: '1024x1024' },
+  { value: '3:4', label: '3:4', size: '1024x1536' },
   { value: '16:9', label: '16:9', size: '1536x1024' },
   { value: '9:16', label: '9:16', size: '1024x1536' },
   { value: 'custom', label: '手动', size: '1024x1024' }

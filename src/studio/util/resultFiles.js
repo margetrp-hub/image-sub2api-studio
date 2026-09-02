@@ -64,8 +64,18 @@ export function downloadMetaFromHistoryItem(item, isVideo = false) {
   return {
     mode: isVideo ? 'video' : 'image',
     providerId: item?.providerId || item?.provider || item?.route || item?.model || 'gateway-account',
+    model: item?.model || item?.providerId || item?.provider || '',
     createdAt: item?.createdAt,
-    prompt: item?.generationPrompt || item?.prompt || item?.case?.title || '',
+    prompt: item?.prompt || item?.case?.title || '',
+    generationPrompt: item?.generationPrompt || item?.prompt || item?.case?.title || '',
+    negativePrompt: item?.negativePrompt || '',
+    aspectRatio: item?.aspectRatio || item?.aspect || '',
+    size: item?.size || '',
+    quality: item?.quality || '',
+    resolutionTier: item?.resolutionTier || '',
+    outputFormat: item?.outputFormat || '',
+    count: item?.count || '',
+    referenceCount: item?.referenceCount || '',
     id: item?.taskId || item?.id || item?.createdAt
   };
 }

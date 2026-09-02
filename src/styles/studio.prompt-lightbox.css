@@ -1,30 +1,19 @@
-.lightboxPromptOnlyStage {
-  width: min(420px, 86%) !important;
-  min-height: 260px !important;
-  padding: 24px !important;
-  display: grid !important;
-  place-items: center !important;
-  align-content: center !important;
-  gap: 10px !important;
-  border: 1px dashed color-mix(in srgb, var(--studio-primary) 26%, var(--studio-border)) !important;
-  border-radius: 18px !important;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, var(--studio-primary) 10%, transparent), transparent 58%),
-    color-mix(in srgb, var(--studio-surface-soft) 92%, transparent) !important;
-  color: var(--studio-primary) !important;
-  text-align: center !important;
-}
+.lightboxPromptOnlyStage { width: min(420px, 86%) !important; min-height: 260px !important; padding: 24px !important; display: grid !important; place-items: center !important; align-content: center !important; gap: 10px !important; border: 1px dashed color-mix(in srgb, var(--studio-primary) 26%, var(--studio-border)) !important; border-radius: 18px !important; background: linear-gradient(145deg, color-mix(in srgb, var(--studio-primary) 10%, transparent), transparent 58%), color-mix(in srgb, var(--studio-surface-soft) 92%, transparent) !important; color: var(--studio-primary) !important; text-align: center !important; }
+.lightboxPromptOnlyStage strong { color: var(--studio-text-strong) !important; font-size: 18px !important; font-weight: 950 !important; }
+.lightboxPromptOnlyStage p { max-width: 280px !important; margin: 0 !important; color: var(--studio-muted) !important; font-size: 13px !important; line-height: 1.55 !important; }
 
-.lightboxPromptOnlyStage strong {
-  color: var(--studio-text-strong) !important;
-  font-size: 18px !important;
-  font-weight: 950 !important;
-}
-
-.lightboxPromptOnlyStage p {
-  max-width: 280px !important;
-  margin: 0 !important;
-  color: var(--studio-muted) !important;
-  font-size: 13px !important;
-  line-height: 1.55 !important;
-}
+/* Keep prompt actions visible while the long prompt body scrolls. */
+.lightboxPanel { width: min(1180px, calc(100vw - 48px)); height: min(860px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); }
+.lightboxPanel > .iconButton { z-index: 3; pointer-events: auto; }
+.lightboxPromptPanel { display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+.lightboxPromptHead { min-width: 0; padding-right: 42px; }
+.lightboxPromptHead > div:first-child, .lightboxPromptHead strong { min-width: 0; }
+.lightboxPromptHead strong { overflow-wrap: anywhere; }
+.lightboxPromptHead .lightboxPromptActions { min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.lightboxPromptActions button { white-space: nowrap; }
+.lightboxPromptPanel > .promptSectionList { min-width: 0; min-height: 0; overflow-y: auto; padding-right: 4px; scrollbar-gutter: stable; align-content: start; }
+.resultGrid .resultShareButton { position: absolute; right: 10px; bottom: 10px; width: 34px; height: 34px; min-height: 34px; padding: 0; display: grid; place-items: center; border: 1px solid rgba(34, 51, 43, 0.14); border-radius: 8px; background: rgba(255, 252, 244, 0.92); color: #17211b; cursor: pointer; }
+.resultGrid figure:has(.resultShareButton) .resultDownloadButton { right: 52px; }
+.resultGrid .resultShareButton:hover, .resultGrid .resultShareButton:focus-visible { border-color: var(--studio-primary); color: var(--studio-primary); }
+.lightboxPromptActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+@media (max-width: 900px) { .lightboxPanel { height: min(860px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); } }

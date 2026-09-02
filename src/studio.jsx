@@ -248,6 +248,7 @@ import {
   resultExtension,
   resultVideoExtension
 } from './studio/util/resultFiles.js';
+import { shareGenerationResult } from './studio/util/share.js';
 import {
   currentSessionProject,
   groupHistorySessions,
@@ -1064,6 +1065,39 @@ function CreationDesk({
     outputFormat,
     id: timing?.startedAt || selectedHistory?.id || selectedCase?.id || ''
   };
+  async function handleShareResult(url, index = 0, shareMeta = currentDownloadMeta) {
+    if (!url && !shareMeta?.prompt) return;
+    try {
+      const result = await shareGenerationResult({
+        url,
+        index,
+        outputFormat: shareMeta?.outputFormat || outputFormat,
+        meta: {
+          ...currentDownloadMeta,
+          ...(shareMeta || {}),
+          model: shareMeta?.model || shareMeta?.providerId || model,
+          aspectRatio: shareMeta?.aspectRatio || shareMeta?.aspect || aspect,
+          size: shareMeta?.size || size,
+          quality: shareMeta?.quality || quality,
+          resolutionTier: shareMeta?.resolutionTier || resolutionTier,
+          outputFormat: shareMeta?.outputFormat || outputFormat,
+          count: shareMeta?.count ?? countValue,
+          referenceCount: shareMeta?.referenceCount ?? referenceItems.length
+        },
+        title: t('canvas.shareTitle', 'AI 生图')
+      });
+      if (result === 'unavailable') return;
+      setStatus('success');
+      setMessage(result === 'shared'
+        ? t('statusMessages.resultShared', '已打开系统分享。')
+        : t('statusMessages.resultShareCopied', '分享内容已复制到剪贴板。'));
+      window.setTimeout(() => setStatus((current) => current === 'success' ? 'idle' : current), 1600);
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+      setStatus('error');
+      setMessage(t('statusMessages.resultShareFailed', '分享失败，请重试。'));
+    }
+  }
   const visiblePromptPresets = (promptPresets || PROMPT_PRESETS).filter((item) => item.mode === mode);
   const referenceFiles = referenceItems.map((item) => item.file);
   const isImageEditMode = mode === 'edit' || mode === 'mask';
@@ -3100,12 +3134,18 @@ function CreationDesk({
       providerId: activeMode === 'video'
         ? activeVideoModel
         : activeModel,
+      model: activeMode === 'video' ? activeVideoModel : activeModel,
       createdAt: new Date(startedAt).toISOString(),
       prompt: basePrompt,
+      generationPrompt: basePrompt,
       size: activeSize,
       quality: activeQuality,
       resolutionTier: activeResolutionTier,
       outputFormat: activeOutputFormat,
+      aspectRatio: activeMode === 'video' ? activeVideoAspect : (task?.aspectRatio || task?.aspect || aspect),
+      moderation: normalizedActiveModeration,
+      count: activeCount,
+      referenceCount: activeReferenceFiles.length,
       sessionId,
       id: generationId,
       batchId: task?.batchId || '',
@@ -3376,6 +3416,11 @@ function CreationDesk({
         ? withReferenceRoleHint(basePrompt, activeReferenceItems, t)
         : basePrompt;
       const effectivePrompt = withResolutionHint(promptWithRoleHint, normalizedActiveResolutionTier, t);
+      generationMeta.generationPrompt = effectivePrompt;
+      generationMeta.referenceCount = editReferenceFiles.length;
+      setResultBatchMeta((current) => current?.id === generationMeta.id
+        ? { ...current, generationPrompt: effectivePrompt, referenceCount: editReferenceFiles.length }
+        : current);
       let payload = null;
       let urls = [];
       let persistedResultUrls = [];
@@ -4052,6 +4097,7 @@ function CreationDesk({
               onEditorPromptChange={setCanvasEditorPrompt}
               onEditorModeChange={changeCanvasEditorMode}
               onPreview={previewCanvasNode}
+              onShare={handleShareResult}
               onSetAsReference={setCanvasNodeAsReference}
               onCopyPrompt={copyCanvasNodePrompt}
               onDelete={deleteCanvasNode}
@@ -4394,9 +4440,9 @@ function CreationDesk({
                     </div>
                   </div>
                   {isVideoSingleMode ? (
-                    <VideoResultGrid urls={videoResults} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewVideo({ url, index })} t={t} />
+                    <VideoResultGrid urls={videoResults} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewVideo({ url, index })} onShare={handleShareResult} t={t} />
                   ) : (
-                    <ResultGrid urls={results} featured carousel outputFormat={outputFormat} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewImage({ url, index })} t={t} />
+                    <ResultGrid urls={results} featured carousel outputFormat={outputFormat} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewImage({ url, index })} onShare={handleShareResult} t={t} />
                   )}
                 </section>
               </div>
@@ -5142,9 +5188,9 @@ function CreationDesk({
           <span>{hasPrimaryResult ? t('composer.resultCount', '共 {count} 张', { count: mode === 'video' ? videoResults.length : results.length }) : t('composer.pending', '待生成')}</span>
         </div>
         {mode === 'video' ? (
-          <VideoResultGrid urls={videoResults} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewVideo({ url, index })} t={t} />
+          <VideoResultGrid urls={videoResults} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewVideo({ url, index })} onShare={handleShareResult} t={t} />
         ) : (
-          <ResultGrid urls={results} outputFormat={outputFormat} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewImage({ url, index })} t={t} />
+          <ResultGrid urls={results} outputFormat={outputFormat} downloadMeta={currentDownloadMeta} onPreview={(url, index) => setPreviewImage({ url, index })} onShare={handleShareResult} t={t} />
         )}
       </section>
       <BottomComposerPanel
@@ -5333,6 +5379,7 @@ function CreationDesk({
         outputFormat={outputFormat}
         downloadMeta={previewImage?.downloadMeta || currentDownloadMeta}
         t={t}
+        onShare={handleShareResult}
         onClose={() => setPreviewImage(null)}
       />
       <VideoLightbox

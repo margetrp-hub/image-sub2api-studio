@@ -188,6 +188,8 @@ export const dictionaries = {
       setReference: '设为参考',
       copyPrompt: '复制提示词',
       download: '下载',
+      shareResult: '分享生成结果',
+      shareTitle: 'AI 生图',
       previousResult: '上一张',
       nextResult: '下一张',
       latestResult: '最新',
@@ -476,7 +478,8 @@ export const dictionaries = {
       promptLabel: '完整提示词',
       promptDefaultTitle: '提示词',
       noPrompt: '没有记录提示词',
-      copyPrompt: '复制'
+      copyPrompt: '复制',
+      share: '分享'
     },
     settings: {
       title: '连接',
@@ -655,6 +658,9 @@ export const dictionaries = {
       serverResultRestored: '已从服务端恢复生成结果。',
       serverJobsSyncing: '检测到服务端仍有生成任务，正在继续同步状态。',
       promptCopied: '提示词已复制。',
+      resultShared: '已打开系统分享。',
+      resultShareCopied: '分享内容已复制到剪贴板。',
+      resultShareFailed: '分享失败，请重试。',
       nodePromptCopied: '#{index} 的提示词已复制。',
       nodeReferenceSet: '#{index} 已设为本轮参考图。',
       nodeReferenceFailed: '这张图暂时无法设为参考图。',
@@ -979,6 +985,8 @@ export const dictionaries = {
       setReference: 'Use as reference',
       copyPrompt: 'Copy prompt',
       download: 'Download',
+      shareResult: 'Share generated result',
+      shareTitle: 'AI image',
       previousResult: 'Previous result',
       nextResult: 'Next result',
       latestResult: 'Latest',
@@ -1267,7 +1275,8 @@ export const dictionaries = {
       promptLabel: 'Full prompt',
       promptDefaultTitle: 'Prompt',
       noPrompt: 'No prompt was saved',
-      copyPrompt: 'Copy'
+      copyPrompt: 'Copy',
+      share: 'Share'
     },
     settings: {
       title: 'Connection',
@@ -1446,6 +1455,9 @@ export const dictionaries = {
       serverResultRestored: 'Generation result restored from the service.',
       serverJobsSyncing: 'Server-side generation jobs are still active. Syncing status now.',
       promptCopied: 'Prompt copied.',
+      resultShared: 'System share opened.',
+      resultShareCopied: 'Share details copied to the clipboard.',
+      resultShareFailed: 'Sharing failed. Try again.',
       nodePromptCopied: 'Prompt for #{index} copied.',
       nodeReferenceSet: '#{index} is now the reference for this round.',
       nodeReferenceFailed: 'This image cannot be used as a reference right now.',
