@@ -7,7 +7,10 @@ const PROMPT_SECTION_LABELS = [
   'Color', 'Material', 'Details', 'Action', 'Text', 'Negative prompt', 'Avoid', 'Resolution', 'Reference', 'Lineage'
 ];
 
-const PROMPT_SECTION_PATTERN = new RegExp(`(${PROMPT_SECTION_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*[:：]`, 'gi');
+// Only treat an explicit section label as a heading when it starts a line or
+// follows sentence punctuation. This keeps ordinary prose such as
+// "resolution: ..." from swallowing the whole prompt into a resolution block.
+const PROMPT_SECTION_PATTERN = new RegExp(`(?:^|[\\n.;。！？])\\s*(${PROMPT_SECTION_LABELS.map((label) => label.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')).join('|')})\\s*[:：]`, 'gim');
 
 function trimPromptBody(value) {
   return String(value || '')
@@ -16,19 +19,23 @@ function trimPromptBody(value) {
     .trim();
 }
 
-function splitLabeledPromptBlock(block) {
+function splitLabeledPromptBlock(block, fallbackTitle) {
   const text = String(block || '').trim();
   if (!text) return [];
   const matches = [...text.matchAll(PROMPT_SECTION_PATTERN)];
   if (!matches.length) return [];
-  return matches.map((match, index) => {
+  const sections = [];
+  const prefix = trimPromptBody(text.slice(0, matches[0].index));
+  if (prefix) sections.push({ title: fallbackTitle, body: prefix });
+  sections.push(...matches.map((match, index) => {
     const nextMatch = matches[index + 1];
     const body = trimPromptBody(text.slice(match.index + match[0].length, nextMatch?.index ?? text.length));
     return {
       title: match[1],
       body
     };
-  }).filter((item) => item.body);
+  }).filter((item) => item.body));
+  return sections;
 }
 
 function promptSectionsFromText(value, t = (key, fallback) => fallback || key) {
@@ -39,7 +46,7 @@ function promptSectionsFromText(value, t = (key, fallback) => fallback || key) {
   const sections = [];
 
   blocks.forEach((block) => {
-    const labeled = splitLabeledPromptBlock(block);
+    const labeled = splitLabeledPromptBlock(block, fallbackTitle);
     if (labeled.length) {
       sections.push(...labeled);
       return;
@@ -48,7 +55,7 @@ function promptSectionsFromText(value, t = (key, fallback) => fallback || key) {
     const lines = block.split('\n').map((item) => item.trim()).filter(Boolean);
     if (lines.length > 1) {
       lines.forEach((line, lineIndex) => {
-        const lineLabeled = splitLabeledPromptBlock(line);
+        const lineLabeled = splitLabeledPromptBlock(line, fallbackTitle);
         if (lineLabeled.length) {
           sections.push(...lineLabeled);
         } else {

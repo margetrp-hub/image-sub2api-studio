@@ -28,11 +28,12 @@
 
   .galleryWorkspacePanel .inspirationCanvasGrid .caseTile,
   .galleryWorkspacePanel .inspirationCanvasGrid .caseTileMain {
-    min-height: 204px !important;
+    min-height: 246px !important;
   }
 
   .galleryWorkspacePanel .inspirationCanvasGrid .caseTileMain {
     grid-template-rows: 116px auto auto !important;
+    padding-bottom: 82px !important;
   }
 
   .galleryWorkspacePanel .inspirationCanvasGrid .caseMedia {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Clock, Redo2, X } from 'lucide-react';
 
 function formatDuration(ms) {
@@ -158,6 +159,7 @@ export function ComposerLiveStatus({
   stallNoticeMs = 90 * 1000,
   t = (key, fallback) => fallback || key
 }) {
+  const [errorOpen, setErrorOpen] = useState(false);
   const percent = Math.max(0, Math.min(100, Number(progress?.percent || 0)));
   const elapsedMs = timing?.startedAt ? Math.max(0, (timing.completedAt || now || Date.now()) - timing.startedAt) : null;
   const stageKey = progress?.stage || 'idle';
@@ -219,7 +221,10 @@ export function ComposerLiveStatus({
           <span>{routeLabel}</span>
         </div>
         {showErrorDetail ? (
-          <p className="composerLiveErrorText">{message}</p>
+          <button type="button" className={`composerLiveErrorText ${errorOpen ? 'isExpanded' : ''}`} onClick={() => setErrorOpen((value) => !value)} aria-expanded={errorOpen}>
+            <span>{t('composer.viewErrorDetail', '查看错误详情')}</span>
+            <em>{errorOpen ? message : String(message).slice(0, 96)}{!errorOpen && String(message).length > 96 ? '…' : ''}</em>
+          </button>
         ) : message ? (
           <p className={`statusLine ${status}`}>{message}</p>
         ) : null}

@@ -115,9 +115,36 @@ try {
   await page.locator('[data-workspace="inspiration"]').first().click();
   await page.locator('.uploadInspirationButton').first().click();
   await page.locator('.inspirationUploadPanel input').first().fill('Smoke shared prompt');
-  await page.locator('.inspirationUploadPanel textarea').first().fill('A refined shared prompt for a clean product poster with soft light.');
+  await page.locator('.inspirationUploadPanel textarea').first().fill('A refined shared prompt for a clean product poster with soft light. Keep the original subject and composition. Resolution: 1K.');
   await page.locator('.inspirationUploadPanel button[type="submit"]').click();
   await page.waitForSelector('.promptOnlyZone .caseTile.promptOnly', { timeout: 8000 });
+
+  const galleryControls = await page.evaluate(() => ({
+    title: document.querySelector('.inspirationWorkspace h2')?.textContent?.trim() || '',
+    sourceButtons: [...document.querySelectorAll('.gallerySourceSwitch button')].map((button) => button.textContent.trim()),
+    categoryOptions: [...document.querySelectorAll('.galleryCategoryFilter option')].map((option) => option.textContent.trim())
+  }));
+  await page.screenshot({ path: 'output/playwright/inspiration-gallery.png', fullPage: true });
+  assert(galleryControls.title === '灵感广场', 'Inspiration gallery should use the concise title.', galleryControls);
+  assert(galleryControls.sourceButtons.some((label) => label.startsWith('用户上传')), 'User source filter should render.', galleryControls);
+  assert(galleryControls.categoryOptions.length > 1, 'Category filter should include the shared prompt category.', galleryControls);
+
+  await page.locator('.gallerySourceSwitch button').filter({ hasText: '用户上传' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.promptOnlyZone .caseTile.promptOnly').length === 1, null, { timeout: 8000 });
+  await page.locator('.promptOnlyZone .promptCaseMain').click();
+  await page.waitForSelector('.lightboxOverlay', { timeout: 8000 });
+  const promptPreview = await page.evaluate(() => ({
+    promptText: document.querySelector('.lightboxPromptPanel')?.innerText || '',
+    promptSections: document.querySelectorAll('.lightboxPromptPanel .promptSection').length,
+    promptTitles: [...document.querySelectorAll('.lightboxPromptPanel .promptSection > span')].map((item) => item.textContent.trim()),
+    firstBody: document.querySelector('.lightboxPromptPanel .promptSection p')?.textContent || ''
+  }));
+  assert(promptPreview.promptText.includes('A refined shared prompt'), 'Prompt card should open a dedicated prompt preview.', promptPreview);
+  assert(promptPreview.promptSections >= 1, 'Prompt preview should render at least one readable section.', promptPreview);
+  assert(promptPreview.firstBody.includes('A refined shared prompt'), 'Prompt prose before a resolution hint must remain visible.', promptPreview);
+  assert(promptPreview.promptTitles.filter((title) => /分辨率|resolution/i.test(title)).length <= 1, 'Resolution metadata must not replace the full prompt.', promptPreview);
+  await page.screenshot({ path: 'output/playwright/inspiration-prompt-preview.png', fullPage: true });
+  await page.locator('.lightboxOverlay .iconButton').click();
 
   await page.locator('.communityPromptStats button').nth(0).click();
   await page.locator('.communityPromptStats button').nth(2).click();

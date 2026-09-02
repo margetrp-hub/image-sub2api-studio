@@ -43,11 +43,13 @@ const expectedCssImports = [
   './styles/studio.flow-modes.css',
   './styles/studio.composer-state-polish.css',
   './styles/studio.canvas-composer-refinement.css',
+  './styles/studio.apple-refinement.css',
   './styles/studio.typography.css'
 ];
 const lazyCssImports = [
   './styles/studio.provider-settings.css',
   './styles/studio.gallery-cards.css',
+  './styles/studio.gallery-filters.css',
   './styles/studio.prompt-lightbox.css',
   './styles/studio.regenerate-dialog.css',
   './styles/studio.generation-confirm-dialog.css'
@@ -148,7 +150,7 @@ const cssBudgets = {
   },
   'src/styles/studio.provider-settings.css': {
     lines: 461,
-    important: 64
+    important: 69
   },
   'src/styles/studio.interactions.css': {
     lines: 299,
@@ -158,9 +160,13 @@ const cssBudgets = {
     lines: 422,
     important: 247
   },
+  'src/styles/studio.gallery-filters.css': {
+    lines: 145,
+    important: 12
+  },
   'src/styles/studio.prompt-lightbox.css': {
     lines: 31,
-    important: 20
+    important: 36
   },
   'src/styles/studio.final-state.css': {
     lines: 570,

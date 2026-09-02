@@ -375,6 +375,98 @@ textarea:focus {
   scrollbar-color: color-mix(in srgb, var(--studio-muted) 38%, transparent) transparent;
 }
 
+.composerLiveErrorText {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-height: none !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  gap: 8px !important;
+  align-items: baseline !important;
+  text-align: left !important;
+  cursor: pointer !important;
+}
+
+.composerLiveErrorText > span,
+.canvasQueueErrorSummary em {
+  color: #b22732 !important;
+  font-size: 10px !important;
+  font-style: normal !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+.composerLiveErrorText > em {
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  color: var(--studio-text) !important;
+  font-size: 11px !important;
+  font-style: normal !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.composerLiveErrorText.isExpanded {
+  align-items: start !important;
+}
+
+.composerLiveErrorText.isExpanded > em {
+  max-height: 124px !important;
+  overflow: auto !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.isExpandedComposer .composerLiveStatus.error:has(.composerLiveErrorText.isExpanded),
+.creationDesk.composerOpen:not(.composerFolded) .bottomComposerBar.isExpandedComposer .composerLiveStatus.needsReview:has(.composerLiveErrorText.isExpanded) {
+  height: auto !important;
+  min-height: 104px !important;
+  max-height: 270px !important;
+}
+
+.canvasQueueErrorSummary {
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  grid-column: 3 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--studio-text) !important;
+  text-align: left !important;
+}
+
+.canvasQueueErrorSummary > span {
+  display: block !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  color: var(--studio-text) !important;
+  font-size: 11px !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.canvasQueueErrorSummary[aria-expanded="true"] {
+  align-items: flex-start !important;
+}
+
+.studioLayout .creationDesk .canvasQueueErrorSummary[aria-expanded="true"] > span {
+  max-width: none !important;
+  max-height: 112px !important;
+  display: block !important;
+  overflow: auto !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--studio-muted) 34%, transparent) transparent;

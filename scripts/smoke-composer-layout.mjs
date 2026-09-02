@@ -196,6 +196,19 @@ async function runScenario(browser, baseUrl, files, viewport, name, options = {}
 
   await page.goto(new URL('studio.html', baseUrl).toString(), { waitUntil: 'networkidle' });
   await page.waitForSelector('.creationDesk.composerOpen', { timeout: 15000 });
+  if (!liveStatus) {
+    const errorSummary = page.locator('.canvasQueueErrorSummary').first();
+    if (await errorSummary.count()) {
+      await errorSummary.click();
+      assert(await errorSummary.getAttribute('aria-expanded') === 'true', `${name}: queue error details should expand on click.`);
+      const expandedStyle = await errorSummary.locator('span').evaluate((node) => ({
+        display: getComputedStyle(node).display,
+        whiteSpace: getComputedStyle(node).whiteSpace,
+        height: node.getBoundingClientRect().height
+      }));
+      assert(expandedStyle.display !== 'none' && expandedStyle.whiteSpace === 'normal' && expandedStyle.height > 12, `${name}: expanded queue error should show readable wrapped text.`, expandedStyle);
+    }
+  }
   if (referencesOpen) {
     await page.locator('.referenceSidePanel input[type="file"]').first().setInputFiles(files);
     await page.waitForSelector('.referenceSideBody.hasReferenceItems .sideReferenceThumbs figure', { timeout: 8000 });

@@ -73,6 +73,7 @@ export function GenerationQueueDock({
 }) {
   const queueItems = Array.isArray(items) ? items : [];
   const [dockLayout, setDockLayout] = useState(loadDockLayout);
+  const [expandedErrorId, setExpandedErrorId] = useState(null);
   const [dragging, setDragging] = useState(false);
   const dockRef = useRef(null);
   const dragRef = useRef(null);
@@ -158,11 +159,25 @@ export function GenerationQueueDock({
       ? t('composer.cancelRunningTask', 'Stop this task')
       : t('composer.cancelQueuedTask', 'Cancel queued task');
 
+    const summary = queueSummary(item, t, formatError);
+    const isError = item.status === 'failed' || item.status === 'unknown';
+    const summaryNode = isError && summary ? (
+      <button
+        type="button"
+        className="canvasQueueErrorSummary"
+        onClick={() => setExpandedErrorId((current) => current === item.id ? null : item.id)}
+        aria-expanded={expandedErrorId === item.id}
+        title={t('composer.viewErrorDetail', '查看错误详情')}
+      >
+        <span>{expandedErrorId === item.id ? summary : `${summary.slice(0, 72)}${summary.length > 72 ? '…' : ''}`}</span>
+        <em>{t('composer.viewErrorDetail', '查看详情')}</em>
+      </button>
+    ) : <p>{summary}</p>;
     return (
       <div className={`canvasQueueItem ${item.status}`} key={item.id}>
         <b>#{index + 1}</b>
         <span>{queueStatusLabel(item.status, t)}</span>
-        <p>{queueSummary(item, t, formatError)}</p>
+        {summaryNode}
         {canCancel ? (
           <button type="button" onClick={() => onCancel(item.id)} aria-label={cancelLabel} title={cancelLabel}>
             <X size={13} />
