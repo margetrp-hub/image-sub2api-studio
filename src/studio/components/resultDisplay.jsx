@@ -25,10 +25,12 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
   const promptText = downloadMeta?.generationPrompt || downloadMeta?.prompt || '';
   const displayUrl = url ? displayResultUrl(url) : '';
   const meta = [
-    downloadMeta?.providerId,
+    downloadMeta?.model || downloadMeta?.providerId,
+    downloadMeta?.aspectRatio || downloadMeta?.aspect,
     downloadMeta?.size,
     downloadMeta?.resolutionTier ? RESOLUTION_TIER_LABELS[downloadMeta.resolutionTier] || downloadMeta.resolutionTier : '',
-    downloadMeta?.quality ? downloadMeta.quality : '',
+    downloadMeta?.quality || '',
+    downloadMeta?.outputFormat?.toUpperCase?.() || '',
     downloadMeta?.createdAt ? formatHistoryTime(downloadMeta.createdAt) : ''
   ].filter(Boolean);
   const referenceLabel = downloadMeta?.title || downloadMeta?.label || t('references.referenceIndex', '参考 {index}', { index: index + 1 });
@@ -41,6 +43,18 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
           <X size={18} />
         </button>
         <div className="lightboxImageStage">
+          {displayUrl && !promptOnly ? (
+            <div className="lightboxMediaActions">
+              <a href={displayUrl} download={downloadName} aria-label={t('canvas.download', '下载')} title={t('canvas.download', '下载')}>
+                <Download size={17} />
+              </a>
+              {onShare ? (
+                <button type="button" onClick={() => onShare(url, index, downloadMeta)} aria-label={t('canvas.shareResult', '分享到灵感库')} title={t('canvas.shareResult', '分享到灵感库')}>
+                  <Share2 size={17} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           {promptOnly ? (
             <div className="lightboxPromptOnlyStage">
               <ImageIcon size={26} />
@@ -70,12 +84,6 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
                 {t('lightbox.copyPrompt', '复制')}
               </button>
             ) : null}
-              {onShare && !promptOnly ? (
-                <button type="button" onClick={() => onShare(url, index, downloadMeta)}>
-                  <Share2 size={14} />
-                  {t('lightbox.share', '分享')}
-                </button>
-              ) : null}
             </div>
           </div>
           {meta.length ? (
@@ -87,12 +95,6 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
         </aside>
         <figcaption>
           <span>{isReferencePreview ? referenceLabel : `#${index + 1}`}</span>
-          {displayUrl ? (
-            <a href={displayUrl} download={downloadName}>
-              <Download size={16} />
-              下载
-            </a>
-          ) : null}
         </figcaption>
       </figure>
     </div>
@@ -156,29 +158,30 @@ export function ResultGrid({ urls, featured = false, carousel = false, outputFor
           <button type="button" className="resultPreviewButton" onClick={() => onPreview(url, index)}>
             <img src={url} alt={`${t('lightbox.imageAlt', '生成结果')} ${index + 1}`} />
           </button>
-          <a className="resultDownloadButton" href={url} download={buildStudioDownloadFilename({
-            ...(downloadMeta || {}),
-            mode: 'image',
-            index,
-            extension: resultExtension(url, outputFormat)
-          })}>
-            <Download size={16} />
-            {t('canvas.download', '下载')}
-          </a>
-          {onShare ? (
-            <button
-              type="button"
-              className="resultShareButton"
-              onClick={(event) => {
-                event.stopPropagation();
-                onShare(url, index, downloadMeta);
-              }}
-              aria-label={t('canvas.shareResult', '分享生成结果')}
-              title={t('canvas.shareResult', '分享生成结果')}
-            >
-              <Share2 size={16} />
-            </button>
-          ) : null}
+          <div className="resultMediaActions">
+            <a className="resultDownloadButton" href={url} download={buildStudioDownloadFilename({
+              ...(downloadMeta || {}),
+              mode: 'image',
+              index,
+              extension: resultExtension(url, outputFormat)
+            })} aria-label={t('canvas.download', '下载')} title={t('canvas.download', '下载')}>
+              <Download size={16} />
+            </a>
+            {onShare ? (
+              <button
+                type="button"
+                className="resultShareButton"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onShare(url, index, downloadMeta);
+                }}
+                aria-label={t('canvas.shareResult', '分享到灵感库')}
+                title={t('canvas.shareResult', '分享到灵感库')}
+              >
+                <Share2 size={16} />
+              </button>
+            ) : null}
+          </div>
         </figure>
       ))}
       {carouselEnabled ? (
@@ -229,29 +232,30 @@ export function VideoResultGrid({ urls, downloadMeta, onPreview, onShare, t = (k
           <button type="button" className="resultPreviewButton" onClick={() => onPreview(url, index)}>
             <video src={url} muted playsInline preload="metadata" />
           </button>
-          <a className="resultDownloadButton" href={url} download={buildStudioDownloadFilename({
-            ...(downloadMeta || {}),
-            mode: 'video',
-            index,
-            extension: resultVideoExtension(url)
-          })}>
-            <Download size={16} />
-            {t('canvas.download', '下载')}
-          </a>
-          {onShare ? (
-            <button
-              type="button"
-              className="resultShareButton"
-              onClick={(event) => {
-                event.stopPropagation();
-                onShare(url, index, downloadMeta);
-              }}
-              aria-label={t('canvas.shareResult', '分享生成结果')}
-              title={t('canvas.shareResult', '分享生成结果')}
-            >
-              <Share2 size={16} />
-            </button>
-          ) : null}
+          <div className="resultMediaActions">
+            <a className="resultDownloadButton" href={url} download={buildStudioDownloadFilename({
+              ...(downloadMeta || {}),
+              mode: 'video',
+              index,
+              extension: resultVideoExtension(url)
+            })} aria-label={t('canvas.download', '下载')} title={t('canvas.download', '下载')}>
+              <Download size={16} />
+            </a>
+            {onShare ? (
+              <button
+                type="button"
+                className="resultShareButton"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onShare(url, index, downloadMeta);
+                }}
+                aria-label={t('canvas.shareResult', '分享到灵感库')}
+                title={t('canvas.shareResult', '分享到灵感库')}
+              >
+                <Share2 size={16} />
+              </button>
+            ) : null}
+          </div>
         </figure>
       ))}
     </div>

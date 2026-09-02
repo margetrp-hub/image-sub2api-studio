@@ -53,39 +53,55 @@ export function buildGenerationShareText(meta = {}, { index = 0, title = 'AI 生
   return lines.join('\n');
 }
 
-async function fileForShare(url, index, extension = 'png') {
-  if (!url || typeof fetch !== 'function' || typeof File === 'undefined') return null;
+export function generationShareParameters(meta = {}) {
+  return Object.fromEntries(SHARE_PARAMETER_LABELS
+    .map(([key]) => [key, labelValue(meta[key])])
+    .filter(([, value]) => value));
+}
+
+export function buildCommunityInspirationDraft({ url = '', index = 0, meta = {}, title = '' } = {}) {
+  const prompt = cleanMultiline(meta.prompt || meta.rawPrompt || meta.generationPrompt);
+  const generationPrompt = cleanMultiline(meta.generationPrompt || prompt);
+  const parameters = generationShareParameters(meta);
+  const titleFromPrompt = clean(prompt).slice(0, 52);
+  return {
+    draftKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: clean(title || meta.title || titleFromPrompt || `AI 作品 ${Math.max(1, Number(index) + 1)}`),
+    category: 'Community Prompts',
+    prompt,
+    generationPrompt,
+    note: cleanMultiline(meta.note),
+    image: displayResultUrl(url),
+    imageAlt: clean(meta.imageAlt || titleFromPrompt || '用户分享的 AI 生成作品'),
+    generation: {
+      ...parameters,
+      generationPrompt,
+      negativePrompt: cleanMultiline(meta.negativePrompt)
+    }
+  };
+}
+
+async function blobUrlToDataUrl(url) {
+  if (!String(url).startsWith('blob:') || typeof fetch !== 'function' || typeof FileReader === 'undefined') return url;
   try {
-    const response = await fetch(displayResultUrl(url));
-    if (!response.ok) return null;
+    const response = await fetch(url);
+    if (!response.ok) return '';
     const blob = await response.blob();
-    const type = blob.type || `image/${extension === 'jpg' ? 'jpeg' : extension}`;
-    const mimeExtension = type.split('/')[1]?.split(';')[0]?.replace('jpeg', 'jpg').replace('svg+xml', 'svg');
-    const fileExtension = mimeExtension || extension;
-    const mediaType = type.startsWith('video/') ? 'video' : 'image';
-    return new File([blob], `ai-${mediaType}-${Math.max(1, Number(index) + 1)}.${fileExtension}`, { type });
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(blob);
+    });
   } catch {
-    return null;
+    return '';
   }
 }
 
-export async function shareGenerationResult({ url = '', index = 0, outputFormat = 'png', meta = {}, title = 'AI 生图' } = {}) {
-  const text = buildGenerationShareText(meta, { index, title });
-  const share = typeof navigator !== 'undefined' ? navigator.share : null;
-  if (typeof share === 'function') {
-    const file = await fileForShare(url, index, outputFormat === 'jpeg' ? 'jpg' : outputFormat);
-    const data = { title, text };
-    if (file && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-      data.files = [file];
-    } else if (/^https?:\/\//i.test(String(url))) {
-      data.url = displayResultUrl(url);
-    }
-    await share.call(navigator, data);
-    return 'shared';
-  }
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return 'copied';
-  }
-  return 'unavailable';
+export async function prepareCommunityInspirationDraft(options = {}) {
+  const draft = buildCommunityInspirationDraft(options);
+  return {
+    ...draft,
+    image: await blobUrlToDataUrl(draft.image)
+  };
 }

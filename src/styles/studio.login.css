@@ -116,3 +116,78 @@ button, input { font: inherit; }
   .studioLoginAsideMeta { margin-top: 25px; }
   .studioLoginContent { padding: 24px 22px 25px; }
 }
+
+/* Product-wide native refinement. */
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  --ias-bg: #f5f5f7;
+  --ias-surface: #ffffff;
+  --ias-surface-muted: #f2f2f7;
+  --ias-ink: #1d1d1f;
+  --ias-copy: #6e6e73;
+  --ias-muted: #86868b;
+  --ias-line: rgba(0, 0, 0, 0.1);
+  --ias-line-strong: rgba(0, 0, 0, 0.16);
+  --ias-accent: #0071e3;
+  --ias-accent-strong: #0058b0;
+  --ias-accent-soft: rgba(0, 113, 227, 0.09);
+}
+
+.studioLoginShell {
+  background: var(--ias-bg);
+}
+
+.studioLoginShell::before,
+.studioLoginAside::after {
+  display: none;
+}
+
+.studioLoginPanel {
+  width: min(100%, 780px);
+  border-color: var(--ias-line);
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.12);
+}
+
+.studioLoginAside {
+  min-height: 500px;
+  background: #1d1d1f;
+}
+
+.studioLoginMark,
+.studioLoginRewardMark,
+.studioLoginMode,
+.studioLoginMode button,
+.studioLoginReward,
+.studioLoginField input {
+  border-radius: 8px;
+}
+
+.studioLoginMark,
+.studioLoginRewardMark,
+.studioLoginSubmit {
+  background: var(--ias-accent);
+}
+
+.studioLoginBrand h1,
+.studioLoginIntro strong,
+.studioLoginKicker,
+.studioLoginAsideMeta,
+.studioLoginRecoveryHeading h2 {
+  letter-spacing: 0;
+}
+
+.studioLoginMode button.is-active {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.studioLoginSubmit {
+  border-color: var(--ias-accent);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.studioLoginSubmit:hover {
+  background: var(--ias-accent-strong);
+  border-color: var(--ias-accent-strong);
+}

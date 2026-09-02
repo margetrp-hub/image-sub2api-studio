@@ -47,8 +47,32 @@ try {
     edits: [],
     responses: [],
     chat: [],
-    jobs: []
+    jobs: [],
+    communityPrompts: []
   };
+
+  await page.route('**/studio-api/community-prompts', (route) => {
+    const body = route.request().postDataJSON();
+    requests.communityPrompts.push(body);
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        item: {
+          ...body,
+          id: 'share-route-smoke',
+          kind: 'community-prompt',
+          sourceName: 'route-smoke',
+          promptPreview: body.prompt,
+          reactions: { up: 0, down: 0 },
+          copied: 0,
+          shared: 0,
+          userReaction: ''
+        }
+      })
+    });
+  });
 
   await page.route('**/studio-api/library**', (route) => route.fulfill({
     status: 200,
@@ -122,6 +146,10 @@ try {
     sessionStorage.clear();
     localStorage.setItem('image-sub2api-studio:theme:v1', 'dark');
     localStorage.setItem('image-sub2api-studio-language', 'en');
+    localStorage.setItem('sub2api-studio:session:v1', JSON.stringify({
+      accessToken: 'route-smoke-user-token',
+      user: { id: 'route-smoke-user', username: 'route-smoke' }
+    }));
     localStorage.setItem(providerSettingsKey, JSON.stringify({
       providerId: 'openai-compatible',
       apiKeySource: 'manual',
@@ -272,11 +300,29 @@ try {
   assert(!result.composerHasResultStrip, 'Generation results should stay on canvas/history, not inside the bottom chat composer.', result);
   assert(!result.composerHasThread, 'A successful result alone should not expand the bottom composer thread.', result);
 
+  await page.locator('.singleLatestResult .resultShareButton').click();
+  await page.waitForSelector('.inspirationUploadPanel .inspirationSharePreview', { timeout: 8000 });
+  const shareDialog = await page.evaluate(() => ({
+    preview: Boolean(document.querySelector('.inspirationSharePreview img')),
+    parameterText: document.querySelector('.inspirationParameterSummary')?.textContent || '',
+    prompt: document.querySelector('.inspirationUploadPanel textarea')?.value || ''
+  }));
+  await page.locator('.inspirationUploadPanel button[type="submit"]').click();
+  await page.waitForFunction(() => document.body.innerText.includes('tiny route smoke test image'), null, { timeout: 8000 });
+  const shared = requests.communityPrompts[0];
+  assert(shareDialog.preview, 'Result share should preview the generated image before publishing.', shareDialog);
+  assert(shareDialog.parameterText.includes('gpt-image-2') && shareDialog.parameterText.includes('1:1'), 'Result share should display model and aspect settings.', shareDialog);
+  assert(shareDialog.prompt.includes('tiny route smoke test image'), 'Result share should prefill the original prompt.', shareDialog);
+  assert(shared?.image?.startsWith('data:image/png;base64,'), 'Result share should include the generated image.', shared);
+  assert(shared?.generation?.model === 'gpt-image-2' && shared?.generation?.aspectRatio === '1:1', 'Result share should submit model and aspect metadata.', shared);
+  assert(shared?.generationPrompt?.includes('Resolution target: 1K'), 'Result share should preserve the actual generation prompt.', shared);
+
   console.log(JSON.stringify({
     ok: true,
     screenshotPath,
     idleScreenshotPath,
     idleLayout,
+    shareDialog,
     requests,
     result
   }, null, 2));

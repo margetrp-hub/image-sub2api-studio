@@ -336,3 +336,91 @@ html[lang="en"] .settingsDialog .providerSettingsGroup > span::after {
 .settingsCallGrid select + input {
   margin-top: 6px !important;
 }
+.settingsOverlay {
+  background: rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: blur(12px);
+}
+
+.providerSettingsPanel {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: var(--studio-surface-strong) !important;
+  box-shadow: var(--studio-shadow) !important;
+}
+
+.settingsHeader {
+  border-color: var(--studio-border) !important;
+}
+
+.inspirationSharePreview {
+  min-height: 116px;
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  background: var(--studio-surface-soft);
+}
+
+.inspirationSharePreview img {
+  width: 132px;
+  height: 96px;
+  display: block;
+  object-fit: cover;
+  border-radius: 7px;
+  background: #000000;
+}
+
+.inspirationSharePreview > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.inspirationSharePreview strong {
+  color: var(--studio-text-strong);
+  font-size: 13px;
+}
+
+.inspirationSharePreview span {
+  color: var(--studio-muted);
+  font-size: 12px;
+}
+
+.inspirationParameterSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inspirationParameterSummary > span {
+  min-width: 0;
+  padding: 5px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--studio-border);
+  border-radius: 7px;
+  background: var(--studio-surface-soft);
+  color: var(--studio-text);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.inspirationParameterSummary small {
+  color: var(--studio-muted);
+  font-size: 10px;
+}
+
+@media (max-width: 760px) {
+  .inspirationSharePreview {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .inspirationSharePreview img {
+    width: 92px;
+    height: 92px;
+  }
+}

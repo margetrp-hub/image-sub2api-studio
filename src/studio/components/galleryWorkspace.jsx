@@ -32,7 +32,7 @@ import '../../styles/studio.gallery-cards-responsive.css';
 
 import { compact, templateKey } from '../util/formatters.js';
 import { displayResultUrl } from '../util/assets.js';
-import { shareGenerationResult } from '../util/share.js';
+import { prepareCommunityInspirationDraft } from '../util/share.js';
 import { COMMUNITY_LICENSE_NOTICE } from '../util/library.js';
 import {
   groupHistorySessions,
@@ -380,6 +380,7 @@ export function GalleryWorkspacePanel({
   onReactTemplate,
   onAppendTemplate,
   onOpenUpload,
+  onShareResult,
   licenseNotice,
   onOpenWorkspace,
   t = (key, fallback) => fallback || key
@@ -420,17 +421,9 @@ export function GalleryWorkspacePanel({
   }, [historySessionItems, isHistory, selectedHistoryId]);
 
   async function handleGalleryShare(url, index, meta) {
-    try {
-      await shareGenerationResult({
-        url,
-        index,
-        outputFormat: meta?.outputFormat || 'png',
-        meta,
-        title: t('canvas.shareTitle', 'AI 生图')
-      });
-    } catch {
-      // Share cancellation is a normal browser action; the gallery has no status rail.
-    }
+    if (!onShareResult) return;
+    const draft = await prepareCommunityInspirationDraft({ url, index, meta });
+    onShareResult(draft);
   }
 
   useEffect(() => {
@@ -464,9 +457,11 @@ export function GalleryWorkspacePanel({
         index: typeof item?.id === 'number' ? Math.max(0, item.id - 1) : 0,
         downloadMeta: {
           mode: 'library-reference',
-          providerId: 'library',
+          providerId: item?.generation?.providerId || item?.generation?.model || 'library',
           title: item?.title || t('gallery.preview', '查看'),
           prompt: item?.prompt || item?.promptPreview || item?.summary || '',
+          generationPrompt: item?.generationPrompt || item?.generation?.generationPrompt || '',
+          ...(item?.generation || {}),
           createdAt: item?.createdAt || item?.updatedAt || ''
         }
       });
@@ -479,9 +474,11 @@ export function GalleryWorkspacePanel({
       index: typeof item?.id === 'number' ? Math.max(0, item.id - 1) : 0,
       downloadMeta: {
         mode: 'library-reference',
-        providerId: 'library',
+        providerId: item?.generation?.providerId || item?.generation?.model || 'library',
         title: item?.title || t('gallery.preview', '查看'),
         prompt: item?.prompt || item?.promptPreview || item?.summary || '',
+        generationPrompt: item?.generationPrompt || item?.generation?.generationPrompt || '',
+        ...(item?.generation || {}),
         createdAt: item?.createdAt || item?.updatedAt || ''
       }
     });

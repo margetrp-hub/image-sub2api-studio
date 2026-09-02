@@ -1,14 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LoaderCircle, Upload, X } from 'lucide-react';
 import '../../styles/studio.provider-settings.css';
 
-export function InspirationUploadDialog({ open, onClose, onSubmit, t = (key, fallback) => fallback || key }) {
+const PARAMETER_LABELS = {
+  model: '模型',
+  providerId: '提供方',
+  routeLabel: '接口',
+  size: '尺寸',
+  aspectRatio: '比例',
+  quality: '画质',
+  resolutionTier: '分辨率',
+  outputFormat: '格式',
+  moderation: '审核',
+  count: '数量',
+  referenceCount: '参考图'
+};
+
+export function InspirationUploadDialog({ open, initialValue = null, onClose, onSubmit, t = (key, fallback) => fallback || key }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Community Prompts');
   const [prompt, setPrompt] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const canSubmit = prompt.trim().length >= 8;
+  const parameterEntries = useMemo(() => Object.entries(initialValue?.generation || {})
+    .filter(([key, value]) => PARAMETER_LABELS[key] && String(value || '').trim()), [initialValue]);
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle(initialValue?.title || '');
+    setCategory(initialValue?.category || 'Community Prompts');
+    setPrompt(initialValue?.prompt || '');
+    setNote(initialValue?.note || '');
+  }, [open, initialValue?.draftKey]);
 
   if (!open) return null;
 
@@ -21,7 +45,11 @@ export function InspirationUploadDialog({ open, onClose, onSubmit, t = (key, fal
         title: title.trim() || prompt.trim().slice(0, 52),
         category: category.trim() || 'Community Prompts',
         prompt: prompt.trim(),
-        note: note.trim()
+        generationPrompt: initialValue?.generationPrompt || prompt.trim(),
+        note: note.trim(),
+        image: initialValue?.image || '',
+        imageAlt: initialValue?.imageAlt || title.trim() || prompt.trim().slice(0, 80),
+        generation: initialValue?.generation || {}
       });
       setTitle('');
       setCategory('Community Prompts');
@@ -39,14 +67,32 @@ export function InspirationUploadDialog({ open, onClose, onSubmit, t = (key, fal
       <form className="providerSettingsPanel inspirationUploadPanel" onSubmit={submit}>
         <div className="settingsHeader">
           <div>
-            <span>{t('gallery.uploadInspiration', '上传灵感')}</span>
-            <h2>{t('gallery.uploadTitle', '分享一个好提示词')}</h2>
-            <p>{t('gallery.uploadHint', '先保存到你的个人灵感广场，后续可以再做公开审核和精选。')}</p>
+            <span>{initialValue?.image ? t('gallery.shareToLibrary', '分享到灵感库') : t('gallery.uploadInspiration', '上传灵感')}</span>
+            <h2>{initialValue?.image ? t('gallery.shareCreationTitle', '分享这张生成作品') : t('gallery.uploadTitle', '分享一个好提示词')}</h2>
+            <p>{initialValue?.image ? t('gallery.shareCreationHint', '作品、完整提示词和生成参数会一起保存到你的用户灵感库。') : t('gallery.uploadHint', '先保存到你的个人灵感广场，后续可以再做公开审核和精选。')}</p>
           </div>
           <button type="button" className="iconButton" onClick={onClose} aria-label={t('settings.close', '关闭')}>
             <X size={18} />
           </button>
         </div>
+        {initialValue?.image ? (
+          <div className="inspirationSharePreview">
+            <img src={initialValue.image} alt={initialValue.imageAlt || title || t('gallery.sharePreview', '待分享作品')} />
+            <div>
+              <strong>{t('gallery.sharedContent', '将一并分享')}</strong>
+              <span>{t('gallery.sharedImage', '生成作品')}</span>
+              <span>{t('gallery.sharedPrompt', '完整提示词')}</span>
+              <span>{t('gallery.sharedParameters', '生成参数')}</span>
+            </div>
+          </div>
+        ) : null}
+        {parameterEntries.length ? (
+          <div className="inspirationParameterSummary" aria-label={t('gallery.sharedParameters', '生成参数')}>
+            {parameterEntries.map(([key, value]) => (
+              <span key={key}><small>{PARAMETER_LABELS[key]}</small>{String(value)}</span>
+            ))}
+          </div>
+        ) : null}
         <label>
           <span>{t('gallery.promptTitle', '标题')}</span>
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t('gallery.promptTitlePlaceholder', '例如：电商主图质感提示词')} />
@@ -67,7 +113,7 @@ export function InspirationUploadDialog({ open, onClose, onSubmit, t = (key, fal
           <button type="button" onClick={onClose}>{t('settings.cancel', '取消')}</button>
           <button type="submit" className="primaryAction" disabled={!canSubmit || submitting}>
             {submitting ? <LoaderCircle size={16} className="spin" /> : <Upload size={16} />}
-            {t('gallery.publishPrompt', '保存到广场')}
+            {initialValue?.image ? t('gallery.confirmShare', '确认分享到灵感库') : t('gallery.publishPrompt', '保存到广场')}
           </button>
         </div>
       </form>

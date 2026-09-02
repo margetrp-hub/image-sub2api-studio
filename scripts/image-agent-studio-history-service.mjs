@@ -1026,6 +1026,7 @@ function protectedLibraryAssetUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^\/studio-api\/library-assets\//i.test(raw)) return raw;
+  if (/^\/studio-api\/history\/[a-zA-Z0-9_-]{8,80}\/assets\/[0-9]{1,3}\.(?:png|jpe?g|webp)$/i.test(raw)) return raw;
   if (/^(?:\.\/)?\/?images\//i.test(raw)) return `/studio-api/library-assets/${raw.replace(/^(?:\.\/)?\/?images\//i, '')}`;
   if (/^https?:\/\//i.test(raw)) return raw;
   return '';
@@ -1061,6 +1062,7 @@ function protectedLibraryThumbnailUrl(item) {
 
   const image = String(item.image || item.image_url || '').trim();
   const localImage = protectedLibraryAssetUrl(image);
+  if (/^(?:https?:\/\/|\/studio-api\/history\/)/i.test(localImage)) return localImage;
   if (/(?:^|\/)thumbs\//i.test(image)) return localImage;
   const match = image.match(/^(?:\.\/)?\/?images\/(.+)\.(png|jpe?g)$/i);
   if (!match) return libraryAssetExists(localImage) ? localImage : '';
@@ -1080,6 +1082,7 @@ function sanitizeLibrarySummary(item) {
     sourceLabel: cleanSourceText(item.sourceLabel, 120),
     sourceName: cleanSourceText(item.sourceName, 120),
     promptPreview: text(item.promptPreview, 160),
+    kind: text(item.kind, 80),
     category: text(item.category, 120),
     styles: Array.isArray(item.styles) ? item.styles.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : [],
     scenes: Array.isArray(item.scenes) ? item.scenes.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : [],
@@ -1090,7 +1093,16 @@ function sanitizeLibrarySummary(item) {
     attributionRequired: item.attributionRequired !== false,
     imageUnavailable: Boolean(item.imageUnavailable),
     imageUnavailableReason: text(item.imageUnavailableReason, 120),
-    riskTags: Array.isArray(item.riskTags) ? item.riskTags.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : []
+    riskTags: Array.isArray(item.riskTags) ? item.riskTags.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : [],
+    createdAt: text(item.createdAt, 60),
+    updatedAt: text(item.updatedAt, 60),
+    note: text(item.note, 800),
+    generationPrompt: text(item.generationPrompt || item.generation?.generationPrompt, 12000),
+    generation: item.generation && typeof item.generation === 'object' ? item.generation : {},
+    reactions: item.reactions && typeof item.reactions === 'object' ? item.reactions : { up: 0, down: 0 },
+    copied: Math.max(0, Number(item.copied || 0)),
+    shared: Math.max(0, Number(item.shared || 0)),
+    userReaction: ['up', 'down'].includes(item.userReaction) ? item.userReaction : ''
   };
 }
 
@@ -3127,13 +3139,19 @@ async function handler(req, res) {
       const prompt = text(body.prompt, 12000);
       if (!prompt) return sendJson(res, 400, { ok: false, error: 'PROMPT_REQUIRED' });
       const now = new Date().toISOString();
+      const id = `share-${randomUUID()}`;
+      const image = await storeResultUrl(auth, id, body.image, 0);
       const item = sanitizeCommunityPrompt({
-        id: `share-${randomUUID()}`,
+        id,
         title: body.title,
         prompt,
+        generationPrompt: body.generationPrompt || body.generation?.generationPrompt || prompt,
         promptPreview: body.promptPreview || prompt,
         category: body.category || 'Community Prompts',
         note: body.note,
+        image,
+        imageAlt: body.imageAlt,
+        generation: body.generation,
         tags: body.tags,
         visibility: body.visibility,
         createdAt: now,

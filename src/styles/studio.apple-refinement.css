@@ -1,0 +1,388 @@
+/* Final product skin: quiet system surfaces, precise hierarchy, and native-feeling controls. */
+:root {
+  color-scheme: light;
+  --studio-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  --studio-font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  --studio-bg: #f5f5f7;
+  --studio-grid: rgba(0, 0, 0, 0.045);
+  --studio-surface: rgba(255, 255, 255, 0.88);
+  --studio-surface-strong: #ffffff;
+  --studio-surface-soft: #f2f2f7;
+  --studio-surface-hover: #e9e9ee;
+  --studio-text: #1d1d1f;
+  --studio-text-strong: #101012;
+  --studio-muted: #6e6e73;
+  --studio-border: rgba(0, 0, 0, 0.1);
+  --studio-border-strong: rgba(0, 0, 0, 0.18);
+  --studio-primary: #0071e3;
+  --studio-primary-strong: #0058b0;
+  --studio-accent: #ff3b30;
+  --studio-accent-soft: rgba(255, 59, 48, 0.1);
+  --studio-info: #0a84ff;
+  --studio-success: #248a3d;
+  --studio-warning: #b25000;
+  --studio-danger: #d70015;
+  --studio-on-dark: #ffffff;
+  --studio-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+  --studio-shadow-soft: 0 5px 18px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --studio-bg: #000000;
+  --studio-grid: rgba(255, 255, 255, 0.055);
+  --studio-surface: rgba(28, 28, 30, 0.88);
+  --studio-surface-strong: #1c1c1e;
+  --studio-surface-soft: #2c2c2e;
+  --studio-surface-hover: #3a3a3c;
+  --studio-text: #f5f5f7;
+  --studio-text-strong: #ffffff;
+  --studio-muted: #a1a1a6;
+  --studio-border: rgba(255, 255, 255, 0.13);
+  --studio-border-strong: rgba(255, 255, 255, 0.22);
+  --studio-primary: #0a84ff;
+  --studio-primary-strong: #409cff;
+  --studio-accent: #ff453a;
+  --studio-accent-soft: rgba(255, 69, 58, 0.14);
+  --studio-success: #30d158;
+  --studio-warning: #ff9f0a;
+  --studio-danger: #ff453a;
+  --studio-shadow: 0 22px 54px rgba(0, 0, 0, 0.42);
+  --studio-shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+html,
+body {
+  background: var(--studio-bg) !important;
+}
+
+body,
+body button,
+body input,
+body select,
+body textarea,
+.studioLayout {
+  font-family: var(--studio-font-sans) !important;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--studio-primary) 24%, transparent);
+}
+
+.studioLayout {
+  --studio-shell-gap: 10px !important;
+  --studio-radius-shell: 8px !important;
+  --studio-radius-panel: 8px !important;
+  --studio-radius-card: 8px !important;
+  --studio-radius-field: 8px !important;
+  --studio-radius-control: 8px !important;
+  padding: 10px !important;
+  gap: 10px !important;
+  background: var(--studio-bg) !important;
+}
+
+.studioTopbar {
+  height: 58px !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid var(--studio-border) !important;
+  background: color-mix(in srgb, var(--studio-surface) 90%, transparent) !important;
+  box-shadow: none !important;
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+.templateRail,
+.studioLayout .templateRail {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--studio-surface) 94%, transparent) !important;
+  box-shadow: none !important;
+  backdrop-filter: saturate(160%) blur(18px);
+}
+
+.sideBrandMark,
+.composerSessionIcon {
+  border-radius: 7px !important;
+  background: var(--studio-text-strong) !important;
+  color: var(--studio-surface-strong) !important;
+  box-shadow: none !important;
+}
+
+.sidePrimaryNav button,
+.railIconAction,
+.sideCollapseButton,
+.railThemeButton,
+.railLanguageButton,
+.workspaceNav button,
+.workbenchModeSwitch button,
+.workflowViewSwitch button {
+  border-radius: 7px !important;
+  color: var(--studio-muted) !important;
+  box-shadow: none !important;
+}
+
+.sidePrimaryNav button:hover,
+.railIconAction:hover,
+.workspaceNav button:hover,
+.workbenchModeSwitch button:hover,
+.workflowViewSwitch button:hover {
+  transform: none !important;
+  background: var(--studio-surface-hover) !important;
+  color: var(--studio-text) !important;
+}
+
+.sidePrimaryNav button.active,
+.railIconAction.active,
+.workspaceNav button.active,
+.workbenchModeSwitch button.active,
+.workflowViewSwitch button.active {
+  border-color: transparent !important;
+  background: color-mix(in srgb, var(--studio-primary) 12%, var(--studio-surface-strong)) !important;
+  color: var(--studio-primary) !important;
+  box-shadow: none !important;
+}
+
+.newChatButton,
+.primaryAction,
+.deskActions .primaryAction {
+  border-color: var(--studio-primary) !important;
+  border-radius: 8px !important;
+  background: var(--studio-primary) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+.newChatButton:hover,
+.primaryAction:hover,
+.deskActions .primaryAction:hover {
+  transform: none !important;
+  border-color: var(--studio-primary-strong) !important;
+  background: var(--studio-primary-strong) !important;
+}
+
+button,
+.ghostLink {
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease, box-shadow 140ms ease !important;
+}
+
+button:hover,
+.ghostLink:hover,
+button:active,
+.ghostLink:active {
+  transform: none;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: var(--studio-surface-strong) !important;
+  color: var(--studio-text) !important;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.025) !important;
+  font-weight: 500 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--studio-primary) !important;
+  outline: 0 !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--studio-primary) 16%, transparent) !important;
+}
+
+.studioLayout .creationDesk {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: var(--studio-surface-strong) !important;
+  box-shadow: none !important;
+}
+
+.studioLayout .creationDesk .workPreview.infiniteCanvas,
+.singleGenerationPreview,
+.canvasGenerationPreview,
+.workflowBoardPreview {
+  border-radius: 8px !important;
+  background-color: var(--studio-surface-soft) !important;
+}
+
+.studioLayout .creationDesk .workbenchTopControls,
+.studioLayout .creationDesk .workbenchModeSwitch,
+.workflowViewSwitch,
+.canvasToolbar,
+.generationQueueDock,
+.canvasQueueDock {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--studio-surface) 94%, transparent) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07) !important;
+  backdrop-filter: saturate(160%) blur(18px);
+}
+
+.bottomComposerBar,
+.studioLayout .creationDesk .bottomComposerBar {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--studio-surface) 96%, transparent) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: saturate(170%) blur(20px);
+}
+
+.composerHeader,
+.composerParamShelf,
+.composerThread,
+.composerPromptRow {
+  border-color: var(--studio-border) !important;
+  background: transparent !important;
+}
+
+.composerModeSegment,
+.composerMiniSegment,
+.composerParamSummary,
+.composerIconPill,
+.composerParamFoldButton {
+  border-color: var(--studio-border) !important;
+  border-radius: 7px !important;
+  background: var(--studio-surface-soft) !important;
+  box-shadow: none !important;
+}
+
+.composerModeSegment button.active,
+.composerMiniSegment button.active {
+  background: var(--studio-surface-strong) !important;
+  color: var(--studio-primary) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.referenceSidePanel.isOpen,
+.studioLayout .creationDesk .referenceSidePanel.isOpen {
+  border-left: 1px solid var(--studio-border) !important;
+  border-radius: 8px 0 0 8px !important;
+  background: color-mix(in srgb, var(--studio-surface) 96%, transparent) !important;
+  box-shadow: -12px 0 34px rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: saturate(170%) blur(20px);
+}
+
+.galleryWorkspacePanel {
+  background: var(--studio-bg) !important;
+}
+
+.galleryWorkspaceHead,
+.galleryWorkspaceToolbar,
+.gallerySelectionPreview,
+.galleryLicenseLine,
+.workspaceEmptyPanel,
+.historyDetailPanel {
+  border-color: var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: var(--studio-surface-strong) !important;
+  box-shadow: none !important;
+}
+
+.categoryTile,
+.caseTile,
+.historyGalleryCard,
+.videoInspirationCard,
+.promptOnlyZone,
+.galleryWorkspacePanel .inspirationCanvasGrid .caseTile {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: var(--studio-surface-strong) !important;
+  box-shadow: none !important;
+}
+
+.categoryTile:hover,
+.caseTile:hover,
+.historyGalleryCard:hover,
+.videoInspirationCard:hover {
+  border-color: color-mix(in srgb, var(--studio-primary) 42%, var(--studio-border)) !important;
+  background: var(--studio-surface-strong) !important;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.08) !important;
+}
+
+.caseMedia,
+.categoryThumbs,
+.gallerySelectionMedia,
+.historyGalleryThumb,
+.resultGrid figure {
+  border-radius: 8px !important;
+}
+
+.resultGrid figure {
+  border: 1px solid var(--studio-border) !important;
+  background: #000000 !important;
+  box-shadow: none !important;
+}
+
+.resultMediaActions,
+.lightboxMediaActions {
+  top: 12px !important;
+  right: 12px !important;
+}
+
+.resultGrid .resultMediaActions > a,
+.resultGrid .resultMediaActions > button,
+.lightboxMediaActions > a,
+.lightboxMediaActions > button {
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--studio-surface-strong) 88%, transparent) !important;
+  color: var(--studio-text) !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12) !important;
+  backdrop-filter: saturate(180%) blur(16px);
+}
+
+@media (min-width: 761px) {
+  .studioLayout .creationDesk.singleFlowMode .canvasQueueDock:not(.isPositioned) {
+    top: 124px !important;
+    width: min(288px, calc(100% - 36px)) !important;
+    max-width: min(288px, calc(100% - 36px)) !important;
+    z-index: 12 !important;
+  }
+}
+
+.lightboxOverlay {
+  background: rgba(0, 0, 0, 0.28) !important;
+  backdrop-filter: blur(12px);
+}
+
+.lightboxPanel,
+.generationConfirmPanel,
+.regeneratePanel {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: var(--studio-surface-strong) !important;
+  box-shadow: var(--studio-shadow) !important;
+}
+
+.lightboxPromptHead,
+.lightboxPanel figcaption {
+  border-color: var(--studio-border) !important;
+}
+
+.lightboxPromptPanel > .promptSectionList {
+  scrollbar-color: color-mix(in srgb, var(--studio-muted) 38%, transparent) transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--studio-muted) 34%, transparent) transparent;
+}
+
+@media (max-width: 760px) {
+  .studioLayout {
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

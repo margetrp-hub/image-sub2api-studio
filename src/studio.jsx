@@ -80,6 +80,7 @@ import './styles/studio.flow-modes.css';
 import './styles/studio.composer-state-polish.css';
 import './styles/studio.canvas-composer-refinement.css';
 import './styles/studio.typography.css';
+import './styles/studio.apple-refinement.css';
 import {
   bootstrapEmbeddedSession,
   clearSession,
@@ -248,7 +249,7 @@ import {
   resultExtension,
   resultVideoExtension
 } from './studio/util/resultFiles.js';
-import { shareGenerationResult } from './studio/util/share.js';
+import { prepareCommunityInspirationDraft } from './studio/util/share.js';
 import {
   currentSessionProject,
   groupHistorySessions,
@@ -753,6 +754,7 @@ function CreationDesk({
   onOpenWorkspace,
   firstRunRequest,
   onFirstRunRequestConsumed,
+  onShareResult,
   focusSignal = 0,
   t
 }) {
@@ -1068,10 +1070,12 @@ function CreationDesk({
   async function handleShareResult(url, index = 0, shareMeta = currentDownloadMeta) {
     if (!url && !shareMeta?.prompt) return;
     try {
-      const result = await shareGenerationResult({
-        url,
+      const matchingNode = [...canvasNodesRef.current].reverse().find((node) => (
+        node?.url === url || node?.persistedUrl === url
+      ));
+      const draft = await prepareCommunityInspirationDraft({
+        url: matchingNode?.persistedUrl || url,
         index,
-        outputFormat: shareMeta?.outputFormat || outputFormat,
         meta: {
           ...currentDownloadMeta,
           ...(shareMeta || {}),
@@ -1083,19 +1087,12 @@ function CreationDesk({
           outputFormat: shareMeta?.outputFormat || outputFormat,
           count: shareMeta?.count ?? countValue,
           referenceCount: shareMeta?.referenceCount ?? referenceItems.length
-        },
-        title: t('canvas.shareTitle', 'AI 生图')
+        }
       });
-      if (result === 'unavailable') return;
-      setStatus('success');
-      setMessage(result === 'shared'
-        ? t('statusMessages.resultShared', '已打开系统分享。')
-        : t('statusMessages.resultShareCopied', '分享内容已复制到剪贴板。'));
-      window.setTimeout(() => setStatus((current) => current === 'success' ? 'idle' : current), 1600);
+      await onShareResult?.(draft);
     } catch (error) {
-      if (error?.name === 'AbortError') return;
       setStatus('error');
-      setMessage(t('statusMessages.resultShareFailed', '分享失败，请重试。'));
+      setMessage(t('statusMessages.resultShareFailed', '无法准备灵感投稿，请重试。'));
     }
   }
   const visiblePromptPresets = (promptPresets || PROMPT_PRESETS).filter((item) => item.mode === mode);
@@ -3982,7 +3979,9 @@ function CreationDesk({
   return (
     <section className={`creationDesk ${workspaceFlowMode === 'single' ? 'singleFlowMode' : 'canvasFlowMode'} ${layoutSections.references ? 'referencesOpen' : ''} ${layoutSections.bottomComposer ? 'composerOpen' : ''} ${composerThreadHasContent ? 'composerHasThread' : ''} ${layoutSections.composerParameters === false ? 'composerParamsCollapsed' : ''} paramRailCollapsed ${composerFolded ? 'composerFolded' : ''}`}>
       <GenerationQueueDock
-        items={activeGenerationQueueItems}
+        items={workspaceFlowMode === 'single'
+          ? activeGenerationQueueItems.filter((item) => item.status !== 'done')
+          : activeGenerationQueueItems}
         t={t}
         formatError={generationErrorMessage}
         onAcknowledge={acknowledgeGenerationTask}
@@ -5435,6 +5434,7 @@ function StudioApp() {
   const [firstRunOpen, setFirstRunOpen] = useState(false);
   const [firstRunRequest, setFirstRunRequest] = useState(null);
   const [inspirationUploadOpen, setInspirationUploadOpen] = useState(false);
+  const [inspirationUploadDraft, setInspirationUploadDraft] = useState(null);
   const [bootError, setBootError] = useState('');
   const [historyItems, setHistoryItems] = useState(() => loadHistory());
   const [historyStatus, setHistoryStatus] = useState('idle');
@@ -6129,11 +6129,23 @@ function StudioApp() {
     if (!created) return;
     setSiteData((current) => ({
       ...(current || {}),
+      totalCases: Math.max(Number(current?.totalCases || 0) + 1, (current?.cases || []).length + 1),
+      categories: [...new Set([...(current?.categories || []), created.category].filter(Boolean))].sort(),
       cases: [created, ...((current?.cases || []).filter((caseItem) => String(caseItem.id) !== String(created.id)))]
     }));
     setCategory(created.category || 'Community Prompts');
     setActiveWorkspace('inspiration');
     setInspirationUploadOpen(false);
+    setInspirationUploadDraft(null);
+  }
+
+  async function handleOpenCommunityShare(draft) {
+    if (!session?.accessToken) {
+      await handleRequireLogin();
+      return;
+    }
+    setInspirationUploadDraft(draft || null);
+    setInspirationUploadOpen(true);
   }
 
   async function handleReactTemplate(item, action) {
@@ -6417,6 +6429,7 @@ function StudioApp() {
             onOpenWorkspace={(workspace) => handleWorkspaceChange(workspace, { preserveHistory: true })}
             firstRunRequest={firstRunRequest}
             onFirstRunRequestConsumed={(requestId) => setFirstRunRequest((current) => current?.id === requestId ? null : current)}
+            onShareResult={handleOpenCommunityShare}
             focusSignal={canvasFocusSignal}
             t={t}
           />
@@ -6450,7 +6463,8 @@ function StudioApp() {
               onToggleTemplateFavorite={handleToggleTemplateFavorite}
               onReactTemplate={handleReactTemplate}
               onAppendTemplate={handleAppendTemplate}
-              onOpenUpload={() => setInspirationUploadOpen(true)}
+              onOpenUpload={() => { setInspirationUploadDraft(null); setInspirationUploadOpen(true); }}
+              onShareResult={handleOpenCommunityShare}
               licenseNotice={siteData?.license}
               onOpenWorkspace={(workspace) => handleWorkspaceChange(workspace, { preserveHistory: true })}
               t={t}
@@ -6486,7 +6500,8 @@ function StudioApp() {
               onToggleTemplateFavorite={handleToggleTemplateFavorite}
               onReactTemplate={handleReactTemplate}
               onAppendTemplate={handleAppendTemplate}
-              onOpenUpload={() => setInspirationUploadOpen(true)}
+              onOpenUpload={() => { setInspirationUploadDraft(null); setInspirationUploadOpen(true); }}
+              onShareResult={handleOpenCommunityShare}
               licenseNotice={siteData?.license}
               onOpenWorkspace={(workspace) => handleWorkspaceChange(workspace, { preserveHistory: true })}
               t={t}
@@ -6543,7 +6558,8 @@ function StudioApp() {
         <React.Suspense fallback={null}>
           <InspirationUploadDialog
             open={inspirationUploadOpen}
-            onClose={() => setInspirationUploadOpen(false)}
+            initialValue={inspirationUploadDraft}
+            onClose={() => { setInspirationUploadOpen(false); setInspirationUploadDraft(null); }}
             onSubmit={handleCreateCommunityPrompt}
             t={t}
           />

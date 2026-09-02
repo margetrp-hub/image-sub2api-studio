@@ -240,6 +240,30 @@ try {
 
   await waitForHealth();
 
+  const sharedCreation = (await request('/studio-api/community-prompts', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: 'Shared generated image',
+      prompt: 'A shared generated image prompt with enough detail for the smoke test.',
+      generationPrompt: 'A shared generated image prompt with enough detail for the smoke test. Resolution target: 1K.',
+      image: tinyPngDataUrl,
+      imageAlt: 'Shared generated image',
+      generation: {
+        model: 'gpt-image-2',
+        aspectRatio: '3:4',
+        quality: 'high',
+        resolutionTier: '1k',
+        outputFormat: 'png'
+      }
+    })
+  })).item;
+  assert(sharedCreation?.image?.startsWith('/studio-api/history/share-'), 'Community creation image was not persisted as a user asset.', sharedCreation);
+  assert(sharedCreation?.generation?.model === 'gpt-image-2' && sharedCreation?.generation?.aspectRatio === '3:4', 'Community creation metadata was not persisted.', sharedCreation);
+  const sharedLibrary = await request('/studio-api/library');
+  const sharedLibraryItem = sharedLibrary.cases?.find((item) => item.id === sharedCreation.id);
+  assert(sharedLibraryItem?.image === sharedCreation.image, 'Community creation image was not returned by the inspiration library.', sharedLibraryItem);
+  assert(sharedLibraryItem?.generationPrompt?.includes('Resolution target: 1K'), 'Community creation generation prompt was not returned by the inspiration library.', sharedLibraryItem);
+
   const staleJobs = await request('/studio-api/generation-jobs?sessionId=smoke-session');
   const staleJob = staleJobs.jobs?.find?.((job) => job.id === 'stalejob1');
   const staleQueuedJob = staleJobs.jobs?.find?.((job) => job.id === 'stalequeued1');

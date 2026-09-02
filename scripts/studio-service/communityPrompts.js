@@ -3,6 +3,37 @@ import { randomUUID } from 'node:crypto';
 import { atomicWriteJson } from './jsonFiles.js';
 import { text } from './text.js';
 
+const GENERATION_FIELDS = [
+  'model',
+  'providerId',
+  'routeLabel',
+  'size',
+  'aspectRatio',
+  'quality',
+  'resolutionTier',
+  'outputFormat',
+  'moderation',
+  'count',
+  'referenceCount'
+];
+
+function sanitizeGeneration(value) {
+  if (!value || typeof value !== 'object') return {};
+  const generation = Object.fromEntries(GENERATION_FIELDS
+    .map((key) => [key, text(value[key], 160)])
+    .filter(([, fieldValue]) => fieldValue));
+  const generationPrompt = text(value.generationPrompt, 12000);
+  const negativePrompt = text(value.negativePrompt, 2000);
+  if (generationPrompt) generation.generationPrompt = generationPrompt;
+  if (negativePrompt) generation.negativePrompt = negativePrompt;
+  return generation;
+}
+
+function sanitizeCommunityImage(value) {
+  const image = text(value, 1600);
+  return /^(?:https?:\/\/|\/studio-api\/(?:history|generation-jobs)\/)/i.test(image) ? image : '';
+}
+
 export function sanitizeCommunityPrompt(value, fallback = {}) {
   const createdAt = text(value?.createdAt || fallback.createdAt || new Date().toISOString(), 60);
   const prompt = text(value?.prompt, 12000);
@@ -17,8 +48,12 @@ export function sanitizeCommunityPrompt(value, fallback = {}) {
     kind: 'community-prompt',
     title,
     prompt,
+    generationPrompt: text(value?.generationPrompt || value?.generation?.generationPrompt || prompt, 12000),
     promptPreview: text(value?.promptPreview || prompt, 800),
     category,
+    image: sanitizeCommunityImage(value?.image || value?.image_url),
+    imageAlt: text(value?.imageAlt || title, 240),
+    generation: sanitizeGeneration(value?.generation),
     sourceName: text(value?.sourceName || 'User shared', 120),
     note: text(value?.note || '', 800),
     tags: Array.isArray(value?.tags) ? value.tags.slice(0, 8).map((item) => text(item, 40)).filter(Boolean) : [],
