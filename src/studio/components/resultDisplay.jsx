@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Copy, Download, ImageIcon, Share2, Video, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Copy, Download, ImageIcon, Share2, Video, X } from 'lucide-react';
 import '../../styles/studio.prompt-lightbox.css';
 import { PromptSectionList } from './promptTools.jsx';
 import { ProtectedStudioImage } from './media.jsx';
@@ -12,7 +12,7 @@ import {
 } from '../util/resultFiles.js';
 import { displayResultUrl } from '../util/assets.js';
 
-export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, outputFormat = 'png', downloadMeta, onClose, onShare, t = (key, fallback) => fallback || key }) {
+export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, outputFormat = 'png', downloadMeta, onClose, onShare, onUse, t = (key, fallback) => fallback || key }) {
   if (!url && !promptOnly) return null;
   const isReferencePreview = downloadMeta?.mode === 'reference' || downloadMeta?.mode === 'library-reference';
   const extension = resultExtension(url || 'prompt.txt', outputFormat);
@@ -82,6 +82,12 @@ export function Lightbox({ url, fallbackSrc = '', promptOnly = false, index, out
               <button type="button" onClick={() => navigator.clipboard?.writeText(promptText)}>
                 <Copy size={14} />
                 {t('lightbox.copyPrompt', '复制')}
+              </button>
+            ) : null}
+            {onUse ? (
+              <button type="button" className="primaryAction lightboxUseButton" onClick={onUse}>
+                <Check size={14} />
+                {t('gallery.useTemplate', '使用')}
               </button>
             ) : null}
             </div>

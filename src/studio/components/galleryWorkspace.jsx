@@ -525,10 +525,6 @@ export function GalleryWorkspacePanel({
       onSelect(item);
       return;
     }
-    if (!hasLibraryPreviewImage(item)) {
-      useLibraryItem(item);
-      return;
-    }
     openTemplatePreview(item);
   };
   const openTemplatePreview = (item) => {
@@ -539,6 +535,7 @@ export function GalleryWorkspacePanel({
       setGalleryPreview({
         url: '',
         promptOnly: true,
+        item,
         index: typeof item?.id === 'number' ? Math.max(0, item.id - 1) : 0,
         downloadMeta: {
           mode: 'library-reference',
@@ -556,6 +553,7 @@ export function GalleryWorkspacePanel({
     setGalleryPreview({
       url,
       fallbackSrc: fallbackUrl,
+      item,
       index: typeof item?.id === 'number' ? Math.max(0, item.id - 1) : 0,
       downloadMeta: {
         mode: 'library-reference',
@@ -835,6 +833,11 @@ export function GalleryWorkspacePanel({
         index={galleryPreview?.index || 0}
         downloadMeta={galleryPreview?.downloadMeta}
         onShare={handleGalleryShare}
+        onUse={galleryPreview?.item ? () => {
+          const item = galleryPreview.item;
+          setGalleryPreview(null);
+          useLibraryItem(item);
+        } : undefined}
         t={t}
         onClose={() => setGalleryPreview(null)}
       />

@@ -96,8 +96,6 @@ try {
 
   await page.goto(new URL('studio.html', baseUrl).toString(), { waitUntil: 'networkidle' });
   await page.locator('[data-workspace="inspiration"]').first().click();
-  await page.waitForSelector('.categoryTile', { timeout: 8000 });
-  await page.locator('.categoryTile').first().click();
   await page.waitForSelector('.caseTile', { timeout: 8000 });
 
   await page.locator('.caseTileMain').first().click();

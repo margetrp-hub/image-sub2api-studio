@@ -2145,7 +2145,7 @@ function CreationDesk({
   useEffect(() => {
     if (!appendTemplateRequest?.prompt) return;
     setPrompt(appendTemplateRequest.prompt.trim());
-    updateLayoutSections({ bottomComposer: true });
+    updateLayoutSections({ bottomComposer: true, composerFolded: false });
     setStatus('success');
     setMessage(t('statusMessages.templateLoaded', '已载入独立提示词，可继续编辑。'));
     window.setTimeout(() => setStatus('idle'), 1200);

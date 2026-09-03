@@ -86,7 +86,6 @@ try {
 
   await page.goto(new URL('studio.html', baseUrl).toString(), { waitUntil: 'networkidle' });
   await page.locator('[data-workspace="inspiration"]').first().click();
-  await page.locator('.categoryTile').first().click();
   await page.waitForSelector('.promptOnlyZone', { timeout: 8000 });
 
   const initial = await page.evaluate(() => ({
@@ -102,6 +101,16 @@ try {
   assert(missingRequests.length === 0, 'Prompt-only cards should not request broken remote image URLs.', missingRequests);
 
   await page.locator('.promptOnlyZone .caseTile.promptOnly .promptCaseMain').first().click();
+  await page.waitForSelector('.lightboxOverlay', { timeout: 8000 });
+  const previewFlow = await page.evaluate(() => ({
+    hasLightbox: Boolean(document.querySelector('.lightboxOverlay')),
+    promptTextVisible: document.querySelector('.lightboxPromptPanel')?.innerText.includes('Prompt-only idea 1') || false,
+    hasUseButton: Boolean(document.querySelector('.lightboxUseButton'))
+  }));
+  assert(previewFlow.hasLightbox, 'Clicking a prompt-only inspiration should open a dedicated preview.', previewFlow);
+  assert(previewFlow.promptTextVisible, 'Prompt-only preview should show the full prompt before use.', previewFlow);
+  assert(previewFlow.hasUseButton, 'Prompt-only preview should provide an explicit use action.', previewFlow);
+  await page.locator('.lightboxUseButton').click();
   await page.waitForSelector('.creationDesk textarea', { timeout: 8000 });
   const useFlow = await page.evaluate(() => ({
     hasLightbox: Boolean(document.querySelector('.lightboxOverlay')),
@@ -111,12 +120,12 @@ try {
     promptTextVisible: document.body.innerText.includes('Prompt-only idea 1'),
     promptBadges: document.querySelectorAll('.promptOnlyZone .promptCaseMain > span').length
   }));
-  assert(!useFlow.hasLightbox, 'Prompt-only cards should not open the image lightbox.', useFlow);
+  assert(!useFlow.hasLightbox, 'Using a prompt-only inspiration should close the preview.', useFlow);
   assert(useFlow.hasDesk, 'Using a prompt-only inspiration should return to the creation desk.', useFlow);
   assert(useFlow.promptValue === 'Prompt-only idea 1: create a careful product scene with clear composition.', 'Using a prompt-only inspiration should replace, not append to, the composer prompt.', useFlow);
   assert(useFlow.promptBadges === 0, 'Prompt-only cards should not repeat a prompt-type badge on every card.', useFlow);
 
-  console.log(JSON.stringify({ ok: true, initial, useFlow }, null, 2));
+  console.log(JSON.stringify({ ok: true, initial, previewFlow, useFlow }, null, 2));
 } finally {
   if (browser) await browser.close();
   await server.close();
