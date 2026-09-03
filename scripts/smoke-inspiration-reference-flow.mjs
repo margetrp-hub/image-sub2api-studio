@@ -104,12 +104,14 @@ try {
 
   const previewResult = await page.evaluate(() => ({
     hasLightbox: Boolean(document.querySelector('.lightboxOverlay')),
+    overlayPosition: document.querySelector('.lightboxOverlay') ? getComputedStyle(document.querySelector('.lightboxOverlay')).position : '',
     activeWorkspace: document.querySelector('.sidePrimaryNav [data-workspace="inspiration"]')?.classList.contains('active'),
     hasReferencePanelSelection: Boolean(document.querySelector('.referenceSidePanel.isOpen .libraryReferencePreview')),
     lightboxImageSrc: document.querySelector('.lightboxOverlay .lightboxImageStage img')?.getAttribute('src') || '',
     body: document.body.innerText.slice(0, 1400)
   }));
   assert(previewResult.hasLightbox, 'Clicking an inspiration card should first open the preview lightbox.', previewResult);
+  assert(previewResult.overlayPosition === 'fixed', 'Inspiration preview should be an independent viewport overlay.', previewResult);
   assert(previewResult.activeWorkspace, 'Previewing an inspiration card should stay in the inspiration workspace.', previewResult);
   assert(!previewResult.hasReferencePanelSelection, 'Previewing should not immediately add the inspiration image to the right reference rail.', previewResult);
   assert(previewResult.lightboxImageSrc.includes('/images/reference-flow-full.png'), 'Preview lightbox should use the full-size inspiration image.', previewResult);

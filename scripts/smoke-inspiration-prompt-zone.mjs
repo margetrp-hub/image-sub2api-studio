@@ -104,10 +104,12 @@ try {
   await page.waitForSelector('.lightboxOverlay', { timeout: 8000 });
   const previewFlow = await page.evaluate(() => ({
     hasLightbox: Boolean(document.querySelector('.lightboxOverlay')),
+    overlayPosition: document.querySelector('.lightboxOverlay') ? getComputedStyle(document.querySelector('.lightboxOverlay')).position : '',
     promptTextVisible: document.querySelector('.lightboxPromptPanel')?.innerText.includes('Prompt-only idea 1') || false,
     hasUseButton: Boolean(document.querySelector('.lightboxUseButton'))
   }));
   assert(previewFlow.hasLightbox, 'Clicking a prompt-only inspiration should open a dedicated preview.', previewFlow);
+  assert(previewFlow.overlayPosition === 'fixed', 'Prompt preview should be an independent viewport overlay.', previewFlow);
   assert(previewFlow.promptTextVisible, 'Prompt-only preview should show the full prompt before use.', previewFlow);
   assert(previewFlow.hasUseButton, 'Prompt-only preview should provide an explicit use action.', previewFlow);
   await page.locator('.lightboxUseButton').click();
