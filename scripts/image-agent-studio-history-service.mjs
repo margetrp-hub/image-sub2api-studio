@@ -8,6 +8,7 @@ import { Agent, FormData as UndiciFormData, fetch as undiciFetch } from 'undici'
 import { createServiceConfig } from './studio-service/config.js';
 import { createCommunityPromptStore, sanitizeCommunityPrompt } from './studio-service/communityPrompts.js';
 import { atomicWriteJson, parseJsonText } from './studio-service/jsonFiles.js';
+import { createKeyedLock } from './studio-service/keyedLock.js';
 import {
   annotateProviderModels,
   applyProviderEndpoint,
@@ -19,7 +20,7 @@ import {
   providerProfile
 } from './studio-service/providerProfiles.js';
 import { createLoginFailureLimiter, createStandaloneAuthStore } from './studio-service/standaloneAuth.js';
-import { text } from './studio-service/text.js';
+import { multilineText, text } from './studio-service/text.js';
 import { createUserBackupService } from './studio-service/userBackup.js';
 import { createUserStorage } from './studio-service/userStorage.js';
 
@@ -319,7 +320,8 @@ const VIDEO_INSPIRATIONS = [
 
 const jobQueues = new Map();
 const activeJobControllers = new Map();
-const jobStorageLocks = new Map();
+const jobStorageLocks = createKeyedLock();
+const userDataLocks = createKeyedLock();
 const COMMUNITY_PROMPT_LIMIT = 300;
 const gatewayFetchAgent = new Agent({
   headersTimeout: GATEWAY_FETCH_TIMEOUT_MS,
@@ -830,21 +832,7 @@ function normalizeJobForRead(auth, job) {
 }
 
 async function withUserJobLock(auth, action) {
-  const previous = jobStorageLocks.get(auth.userKey) || Promise.resolve();
-  let release;
-  const current = new Promise((resolve) => {
-    release = resolve;
-  });
-  jobStorageLocks.set(auth.userKey, previous.then(() => current, () => current));
-  await previous.catch(() => {});
-  try {
-    return await action();
-  } finally {
-    release();
-    if (jobStorageLocks.get(auth.userKey) === current) {
-      jobStorageLocks.delete(auth.userKey);
-    }
-  }
+  return jobStorageLocks.run(auth.userKey, action);
 }
 
 async function readJobsUnlocked(auth) {
@@ -969,6 +957,7 @@ function assetExtension(mime) {
   if (mime === 'image/jpeg') return 'jpg';
   if (mime === 'image/webp') return 'webp';
   if (mime === 'video/mp4') return 'mp4';
+  if (mime === 'video/webm') return 'webm';
   return 'png';
 }
 
@@ -986,7 +975,7 @@ function detectImageMime(buffer, fallback = 'image/png') {
 }
 
 async function writeAssetBuffer(auth, recordId, buffer, mime, index) {
-  const maxBytes = mime === 'video/mp4' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  const maxBytes = mime.startsWith('video/') ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
   if (!buffer.length || buffer.length > maxBytes) return '';
   const ext = assetExtension(mime);
   const assetDir = path.join(auth.userDir, 'assets', recordId);
@@ -1002,11 +991,51 @@ async function storeResultUrl(auth, recordId, value, index) {
   if (raw.startsWith('/studio-api/history/')) return raw;
   if (raw.startsWith('/studio-api/generation-jobs/')) return raw;
 
-  const match = raw.match(/^data:((?:image\/(?:png|jpeg|webp))|video\/mp4);base64,([a-zA-Z0-9+/=\s]+)$/);
+  const match = raw.match(/^data:((?:image\/(?:png|jpeg|webp))|video\/(?:mp4|webm));base64,([a-zA-Z0-9+/=\s]+)$/);
   if (!match) return '';
 
   const buffer = Buffer.from(match[2].replace(/\s+/g, ''), 'base64');
   return writeAssetBuffer(auth, recordId, buffer, match[1], index);
+}
+
+async function storeSharedResultUrl(auth, shareId, value) {
+  const raw = String(value || '').trim();
+  if (!raw.startsWith('/studio-api/')) {
+    const stored = await storeResultUrl(auth, shareId, raw, 0);
+    if (raw && !stored) {
+      const error = new Error('SHARE_ASSET_INVALID');
+      error.status = 400;
+      throw error;
+    }
+    return stored;
+  }
+  const match = raw.match(/^\/studio-api\/(?:history|generation-jobs)\/([A-Za-z0-9_-]{8,160})\/assets\/([0-9]{1,3}\.(?:png|jpg|webp|mp4|webm))$/);
+  if (!match) {
+    const error = new Error('SHARE_ASSET_INVALID');
+    error.status = 400;
+    throw error;
+  }
+  const sourcePath = path.join(auth.userDir, 'assets', match[1], match[2]);
+  const stat = await fs.stat(sourcePath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!stat?.isFile()) {
+    const error = new Error('SHARE_ASSET_NOT_FOUND');
+    error.status = 404;
+    throw error;
+  }
+  const maxBytes = /\.(?:mp4|webm)$/.test(match[2]) ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+  if (!stat.size || stat.size > maxBytes) {
+    const error = new Error('SHARE_ASSET_SIZE_INVALID');
+    error.status = 400;
+    throw error;
+  }
+  const targetDir = path.join(auth.userDir, 'assets', shareId);
+  const fileName = `0${path.extname(match[2])}`;
+  await fs.mkdir(targetDir, { recursive: true });
+  await fs.copyFile(sourcePath, path.join(targetDir, fileName));
+  return `/studio-api/history/${shareId}/assets/${fileName}`;
 }
 
 async function storeSessionUrl(auth, value, index, assetId = sessionAssetId()) {
@@ -1096,8 +1125,8 @@ function sanitizeLibrarySummary(item) {
     riskTags: Array.isArray(item.riskTags) ? item.riskTags.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : [],
     createdAt: text(item.createdAt, 60),
     updatedAt: text(item.updatedAt, 60),
-    note: text(item.note, 800),
-    generationPrompt: text(item.generationPrompt || item.generation?.generationPrompt, 12000),
+    note: multilineText(item.note, 800),
+    generationPrompt: multilineText(item.generationPrompt || item.generation?.generationPrompt, 12000),
     generation: item.generation && typeof item.generation === 'object' ? item.generation : {},
     reactions: item.reactions && typeof item.reactions === 'object' ? item.reactions : { up: 0, down: 0 },
     copied: Math.max(0, Number(item.copied || 0)),
@@ -1109,7 +1138,7 @@ function sanitizeLibrarySummary(item) {
 function sanitizeLibraryDetail(item) {
   return {
     ...sanitizeLibrarySummary(item),
-    prompt: text(item.prompt, 12000)
+    prompt: multilineText(item.prompt, 12000)
   };
 }
 
@@ -1125,7 +1154,7 @@ function sanitizePromptPresetSummary(item) {
 function sanitizePromptPresetDetail(item) {
   return {
     ...sanitizePromptPresetSummary(item),
-    prompt: text(item.prompt, 4000)
+    prompt: multilineText(item.prompt, 12000)
   };
 }
 
@@ -1148,8 +1177,8 @@ function sanitizeVideoInspirationSummary(item) {
 function sanitizeVideoInspirationDetail(item) {
   return {
     ...sanitizeVideoInspirationSummary(item),
-    prompt: text(item.prompt, 4000),
-    negativePrompt: text(item.negativePrompt, 1000)
+    prompt: multilineText(item.prompt, 12000),
+    negativePrompt: multilineText(item.negativePrompt, 4000)
   };
 }
 
@@ -1207,7 +1236,7 @@ function sanitizeAssistantMessages(items) {
       id: text(item.id || randomUUID(), 120),
       role: item.role === 'assistant' ? 'assistant' : 'user',
       content: text(item.content, 8000),
-      finalPrompt: text(item.finalPrompt, 12000),
+      finalPrompt: multilineText(item.finalPrompt, 12000),
       pending: Boolean(item.pending),
       failed: Boolean(item.failed)
     }))
@@ -1225,7 +1254,7 @@ function sanitizePromptSuggestion(value) {
     details: text(value.details, 3000),
     textRules: text(value.textRules, 2000),
     constraints: text(value.constraints, 3000),
-    finalPrompt: text(value.finalPrompt, 12000),
+    finalPrompt: multilineText(value.finalPrompt, 12000),
     raw: text(value.raw, 16000)
   };
   return Object.values(suggestion).some(Boolean) ? suggestion : null;
@@ -1249,7 +1278,7 @@ function sanitizeDownloadMeta(value) {
     mode: text(value.mode || 'image', 40),
     providerId: text(value.providerId, 160),
     createdAt: value.createdAt && !Number.isNaN(Date.parse(value.createdAt)) ? value.createdAt : '',
-    prompt: text(value.prompt, 6000),
+    prompt: multilineText(value.prompt, 12000),
     id: text(value.id, 160)
   };
 }
@@ -1291,8 +1320,8 @@ async function sanitizeCanvasNodes(auth, nodes, assetIndex, assetId = sessionAss
       url,
       persistedUrl: url,
       sourceUrl: text(node.sourceUrl, 1200),
-      prompt: text(node.prompt, 6000),
-      generationPrompt: text(node.generationPrompt || node.prompt, 6000),
+      prompt: multilineText(node.prompt, 12000),
+      generationPrompt: multilineText(node.generationPrompt || node.prompt, 12000),
       workflow: sanitizeWorkflow(node.workflow),
       title: text(node.title, 160),
       x: Number.isFinite(x) ? Math.max(-8000, Math.min(8000, x)) : 0,
@@ -1337,7 +1366,7 @@ function sanitizeGenerationQueue(items) {
       providerFamily: text(item.providerFamily || item.providerId || item.provider || '', 160),
       apiKeySource: text(item.apiKeySource || '', 60),
       providerLabel: text(item.providerLabel || '', 160),
-      prompt: text(item.prompt, 12000),
+      prompt: multilineText(item.prompt, 12000),
       model: text(item.model, 160),
       aspect: text(item.aspect || item.aspectRatio, 40),
       aspectRatio: text(item.aspectRatio || item.aspect, 40),
@@ -1375,14 +1404,15 @@ async function pruneSessionAssets(auth, session) {
   const assetDir = path.join(auth.userDir, 'assets', assetId);
   const referenced = new Set();
   const collect = (url) => {
-    const match = String(url || '').match(new RegExp(`/studio-api/history/${assetId}/assets/([0-9]{1,3}\\.(?:png|jpg|webp))$`));
+    const match = String(url || '').match(new RegExp(`/studio-api/history/${assetId}/assets/([0-9]{1,3}\\.(?:png|jpg|webp|mp4|webm))$`));
     if (match) referenced.add(match[1]);
   };
   for (const url of session.results || []) collect(url);
+  for (const url of session.videoResults || []) collect(url);
   for (const node of session.canvasNodes || []) collect(node?.url);
   const files = await fs.readdir(assetDir).catch(() => []);
   await Promise.all(files
-    .filter((fileName) => /^[0-9]{1,3}\.(png|jpg|webp)$/.test(fileName) && !referenced.has(fileName))
+    .filter((fileName) => /^[0-9]{1,3}\.(png|jpg|webp|mp4|webm)$/.test(fileName) && !referenced.has(fileName))
     .map((fileName) => fs.rm(path.join(assetDir, fileName), { force: true })));
 }
 
@@ -1391,13 +1421,13 @@ async function sanitizeSession(auth, body) {
   const sessionId = text(body.sessionId, 120);
   const assetId = sessionAssetId(sessionId);
   const results = await sanitizeSessionUrls(auth, body.results, assetIndex, assetId);
-  const videoResults = Array.isArray(body.videoResults) ? body.videoResults.slice(0, SESSION_URL_LIMIT).map((value) => text(value, 1200)).filter(Boolean) : [];
+  const videoResults = await sanitizeSessionUrls(auth, body.videoResults, assetIndex, assetId);
   const canvasNodes = await sanitizeCanvasNodes(auth, body.canvasNodes, assetIndex, assetId);
   const session = {
     updatedAt: new Date().toISOString(),
     sessionId,
     mode: text(body.mode || 'image', 40),
-    prompt: text(body.prompt, 12000),
+    prompt: multilineText(body.prompt, 12000),
     model: text(body.model, 160),
     results,
     videoResults,
@@ -1440,14 +1470,25 @@ async function sanitizeRecord(auth, body) {
     providerFamily: text(body.providerFamily || body.providerId || body.provider || '', 160),
     apiKeySource: text(body.apiKeySource || '', 60),
     providerLabel: text(body.providerLabel || '', 160),
-    prompt: text(body.prompt, 6000),
-    generationPrompt: text(body.generationPrompt || body.prompt, 6000),
+    prompt: multilineText(body.prompt, 12000),
+    generationPrompt: multilineText(body.generationPrompt || body.prompt, 12000),
     workflow: sanitizeWorkflow(body.workflow),
     model: text(body.model, 120),
     size: text(body.size, 40),
     quality: text(body.quality, 40),
     outputFormat: text(body.outputFormat || body.output_format || '', 20),
     moderation: text(body.moderation || '', 40),
+    aspectRatio: text(body.aspectRatio || body.aspect || body.videoAspectRatio || body.videoAspect, 40),
+    resolutionTier: text(body.resolutionTier, 40),
+    duration: Math.max(0, Number(body.duration || body.videoDuration) || 0),
+    fps: Math.max(0, Number(body.fps || body.videoFps) || 0),
+    width: Math.max(0, Number(body.width) || 0),
+    height: Math.max(0, Number(body.height) || 0),
+    videoMotion: text(body.videoMotion || body.motion, 160),
+    videoStyle: text(body.videoStyle, 160),
+    videoQuality: text(body.videoQuality, 160),
+    negativePrompt: multilineText(body.negativePrompt, 4000),
+    referenceCount: Math.max(0, Number(body.referenceCount) || 0),
     requestIds: Array.isArray(body.requestIds) ? body.requestIds.slice(0, 8).map((value) => text(value, 160)).filter(Boolean) : [],
     usageSummary: text(body.usageSummary || body.costSummary || '', 240),
     costSummary: text(body.costSummary || '', 240),
@@ -1474,11 +1515,11 @@ function sanitizeWorkflow(workflow) {
         nodeId: text(step?.nodeId, 160),
         mode: text(step?.mode || 'image', 40),
         route: text(step?.route || '', 80),
-        prompt: text(step?.prompt, 12000)
+        prompt: multilineText(step?.prompt, 12000)
       }))
       .filter((step) => step.prompt)
     : [];
-  const rootPrompt = text(workflow.rootPrompt, 12000);
+  const rootPrompt = multilineText(workflow.rootPrompt, 12000);
   if (!rootPrompt && !lineage.length) return null;
   return { rootPrompt, lineage };
 }
@@ -1616,7 +1657,7 @@ async function handleStandalonePromptRoute(req, res, parts, userId) {
   }
   const body = await readJsonBody(req);
   if (parts[2] === 'optimize') {
-    const prompt = text(body.prompt, 12_000);
+    const prompt = multilineText(body.prompt, 12_000);
     if (!prompt) return sendJson(res, 400, { ok: false, error: 'PROMPT_REQUIRED' });
     const instruction = text(body.instruction, 4_000);
     const result = await providerChatCompletion({
@@ -1639,10 +1680,10 @@ async function handleStandalonePromptRoute(req, res, parts, userId) {
   }
   if (parts[2] === 'assistant') {
     const messages = sanitizeChatMessages(body.messages);
-    const prompt = text(body.prompt, 12_000);
+    const prompt = multilineText(body.prompt, 12_000);
     const instruction = text(body.userInstruction || body.instruction, 4_000);
     const context = [
-      body.basePrompt ? `Canvas base prompt:\n${text(body.basePrompt, 12_000)}` : '',
+      body.basePrompt ? `Canvas base prompt:\n${multilineText(body.basePrompt, 12_000)}` : '',
       body.selectedCanvasLabel ? `Selected canvas: ${text(body.selectedCanvasLabel, 500)}` : '',
       body.aspectRatio || body.size || body.resolutionTier || body.quality
         ? `Image parameters: ${[body.aspectRatio, body.size, body.resolutionTier, body.quality].map((item) => text(item, 100)).filter(Boolean).join(', ')}`
@@ -2056,14 +2097,15 @@ function buildJobRecord(body) {
     apiKeySource: text(request.apiKeySource || '', 60),
     providerLabel: text(request.providerLabel || '', 160),
     model: text(request.model, 160),
-    prompt: text(request.prompt, 12000),
-    generationPrompt: text(request.generationPrompt || request.prompt, 12000),
+    prompt: multilineText(request.prompt, 12000),
+    generationPrompt: multilineText(request.generationPrompt || request.prompt, 12000),
     workflow: sanitizeWorkflow(request.workflow),
     size: text(request.size || 'auto', 40),
     quality: text(request.quality || 'auto', 40),
     outputFormat: text(request.outputFormat || request.output_format || 'png', 20),
     moderation: text(request.moderation || 'auto', 40),
     aspectRatio: text(request.aspectRatio || request.videoAspect || '', 40),
+    resolutionTier: text(request.resolutionTier, 40),
     duration: Math.max(1, Math.min(30, Number(request.duration || request.videoDuration || 5))),
     width: Math.max(0, Number(request.width || 0)),
     height: Math.max(0, Number(request.height || 0)),
@@ -2071,7 +2113,7 @@ function buildJobRecord(body) {
     motion: text(request.motion || request.videoMotion || '', 80),
     videoStyle: text(request.style || request.videoStyle || '', 80),
     videoQuality: text(request.videoQuality || request.quality || '', 40),
-    negativePrompt: text(request.negativePrompt || '', 4000),
+    negativePrompt: multilineText(request.negativePrompt || '', 4000),
     count,
     completed: 0,
     total: count,
@@ -2155,7 +2197,6 @@ function buildProviderMultipartForm(plan, runtime, { includeVideoReference = fal
 
 async function writeHistoryRecordForJob(auth, job) {
   if (!Array.isArray(job.resultUrls) || !job.resultUrls.length) return;
-  const records = await readRecords(auth);
   const record = {
     id: job.id,
     sessionId: job.sessionId,
@@ -2175,6 +2216,7 @@ async function writeHistoryRecordForJob(auth, job) {
     moderation: job.moderation,
     aspect: job.aspectRatio,
     aspectRatio: job.aspectRatio,
+    resolutionTier: job.resolutionTier,
     videoAspect: job.aspectRatio,
     videoAspectRatio: job.aspectRatio,
     duration: job.duration,
@@ -2187,6 +2229,7 @@ async function writeHistoryRecordForJob(auth, job) {
     videoStyle: job.videoStyle,
     videoQuality: job.videoQuality,
     negativePrompt: job.negativePrompt,
+    referenceCount: job.inputSummary?.referenceCount || 0,
     count: job.count,
     resultUrls: job.resultUrls,
     requestIds: Array.isArray(job.requestIds) ? job.requestIds : [],
@@ -2194,7 +2237,10 @@ async function writeHistoryRecordForJob(auth, job) {
     timing: job.timing || null,
     case: null
   };
-  await writeRecords(auth, [record, ...records.filter((item) => item.id !== record.id)].slice(0, HISTORY_LIMIT));
+  await userDataLocks.run(auth.userKey, async () => {
+    const records = await readRecords(auth);
+    await writeRecords(auth, [record, ...records.filter((item) => item.id !== record.id)].slice(0, HISTORY_LIMIT));
+  });
 }
 
 async function postJsonToGateway(url, apiKey, body, clientRequestId, signal) {
@@ -2541,7 +2587,7 @@ function decodeRoutePart(value) {
 async function serveAsset(req, res, auth, parts) {
   const recordId = cleanRecordId(parts[2]);
   const fileName = parts[4] || '';
-  if (!/^[0-9]{1,3}\.(png|jpg|webp|mp4)$/.test(fileName)) {
+  if (!/^[0-9]{1,3}\.(png|jpg|webp|mp4|webm)$/.test(fileName)) {
     return sendJson(res, 404, { ok: false, error: 'ASSET_NOT_FOUND' });
   }
 
@@ -2555,13 +2601,16 @@ async function serveAsset(req, res, auth, parts) {
   if (!stat?.isFile()) return sendJson(res, 404, { ok: false, error: 'ASSET_NOT_FOUND' });
 
   const ext = path.extname(fileName).slice(1);
-  const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : ext === 'mp4' ? 'video/mp4' : 'image/png';
-  const range = ext === 'mp4' ? String(req.headers.range || '') : '';
+  const isVideo = ext === 'mp4' || ext === 'webm';
+  const mime = ext === 'jpg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : isVideo ? `video/${ext}` : 'image/png';
+  const range = isVideo ? String(req.headers.range || '') : '';
   if (range) {
     const match = range.match(/^bytes=(\d*)-(\d*)$/);
-    const start = match?.[1] ? Number(match[1]) : 0;
-    const end = match?.[2] ? Math.min(Number(match[2]), stat.size - 1) : stat.size - 1;
-    if (!match || !Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || start >= stat.size) {
+    const suffix = match && !match[1] ? Number(match[2]) : null;
+    const start = suffix !== null ? Math.max(0, stat.size - suffix) : Number(match?.[1]);
+    const end = suffix !== null || !match?.[2] ? stat.size - 1 : Math.min(Number(match[2]), stat.size - 1);
+    if (!match || (!match[1] && !match[2]) || (suffix !== null && (!Number.isSafeInteger(suffix) || suffix <= 0))
+      || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || start >= stat.size) {
       res.writeHead(416, { 'Content-Range': `bytes */${stat.size}` });
       res.end();
       return;
@@ -2579,7 +2628,7 @@ async function serveAsset(req, res, auth, parts) {
   res.writeHead(200, {
     'Content-Type': mime,
     'Content-Length': stat.size,
-    ...(ext === 'mp4' ? { 'Accept-Ranges': 'bytes' } : {}),
+    ...(isVideo ? { 'Accept-Ranges': 'bytes' } : {}),
     'Cache-Control': 'private, max-age=3600'
   });
   createReadStream(filePath).pipe(res);
@@ -2894,6 +2943,7 @@ async function handleStandaloneAuthRoute(req, res, parts, url) {
 }
 
 async function handler(req, res) {
+  let releaseUserData;
   const corsAllowed = sendCors(req, res);
   if (req.method === 'OPTIONS') {
     res.writeHead(corsAllowed ? 204 : 403);
@@ -2954,6 +3004,11 @@ async function handler(req, res) {
     }
 
     const auth = await authenticate(req);
+    // Lock the whole read/modify/write operation, including shared asset copies.
+    // Generation runners take the same lock only when committing their history.
+    if (['history', 'session', 'community-prompts', 'backup', 'generation-jobs'].includes(parts[1])) {
+      releaseUserData = await userDataLocks.acquire(auth.userKey);
+    }
 
     if (parts[1] === 'prompt') {
       return await handleStandalonePromptRoute(req, res, parts, auth.user.id);
@@ -2984,6 +3039,11 @@ async function handler(req, res) {
 
     if (req.method === 'POST' && parts[0] === 'studio-api' && parts[1] === 'backup' && parts[2] === 'restore' && parts.length === 3) {
       const body = await readJsonBody(req);
+      const jobs = await readJobs(auth);
+      const queue = jobQueues.get(auth.userKey);
+      if (queue?.running || queue?.items?.length || jobs.some((job) => JOB_ACTIVE_STATUSES.has(job.status))) {
+        return sendJson(res, 409, { ok: false, error: 'BACKUP_RESTORE_JOBS_ACTIVE' });
+      }
       const result = await restoreUserBackup(auth, body);
       return sendJson(res, 200, result);
     }
@@ -3136,11 +3196,11 @@ async function handler(req, res) {
 
     if (req.method === 'POST' && parts[0] === 'studio-api' && parts[1] === 'community-prompts' && parts.length === 2) {
       const body = await readJsonBody(req);
-      const prompt = text(body.prompt, 12000);
+      const prompt = multilineText(body.prompt, 12000);
       if (!prompt) return sendJson(res, 400, { ok: false, error: 'PROMPT_REQUIRED' });
       const now = new Date().toISOString();
       const id = `share-${randomUUID()}`;
-      const image = await storeResultUrl(auth, id, body.image, 0);
+      const image = await storeSharedResultUrl(auth, id, body.image);
       const item = sanitizeCommunityPrompt({
         id,
         title: body.title,
@@ -3268,6 +3328,8 @@ async function handler(req, res) {
         ? { details: redactProviderValue(error.details) }
         : {})
     });
+  } finally {
+    releaseUserData?.();
   }
 }
 

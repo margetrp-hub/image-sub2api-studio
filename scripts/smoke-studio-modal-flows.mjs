@@ -190,7 +190,86 @@ try {
   await video.locator('.lightboxMediaActions button[aria-label="分享到灵感库"]').click();
   await video.waitForSelector('.inspirationSharePreview video');
   assert.equal(await video.locator('.inspirationSharePreview img').count(), 0);
-  console.log(JSON.stringify({ ok: true, checks: ['per-result prompt and parameters', 'independent history prompt', 'nested dialog Escape and focus', 'mobile toolbar and share', 'long prompt reading and use', 'error dialog and copy', 'video layout and native keys'] }));
+
+  // Mount the real share dialog with persisted URLs: ordinary history flows may
+  // already have resolved those URLs to blobs before opening the share dialog.
+  const protectedPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const protectedErrors = [];
+  const assetRequests = [];
+  protectedPage.on('pageerror', (error) => protectedErrors.push(error.message));
+  await installFixtures(protectedPage, { history: [] });
+  await protectedPage.route('**/studio-api/history/protected-share/assets/*', (route) => {
+    const request = route.request();
+    const authorization = request.headers().authorization;
+    assetRequests.push({ url: request.url(), authorization });
+    if (authorization !== 'Bearer modal-smoke-token') return route.fulfill({ status: 401, body: 'Authentication required' });
+    const isVideo = request.url().endsWith('.webm');
+    return route.fulfill({
+      status: 200,
+      contentType: isVideo ? 'video/webm' : 'image/png',
+      body: isVideo ? Buffer.from(bytes) : Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64')
+    });
+  });
+  await protectedPage.goto(new URL('studio.html', base).href, { waitUntil: 'networkidle' });
+  await protectedPage.evaluate(async () => {
+    const { default: React } = await import('/node_modules/.vite/deps/react.js');
+    const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js');
+    const { InspirationUploadDialog } = await import('/src/studio/components/inspirationUploadDialog.jsx');
+    const { downloadMetaFromHistoryItem } = await import('/src/studio/util/resultFiles.js');
+    const { buildCommunityInspirationDraft } = await import('/src/studio/util/share.js');
+    const { createTranslator } = await import('/src/studio/i18n.js');
+    const host = document.createElement('div'); document.body.append(host);
+    const root = ReactDOM.createRoot(host);
+    window.__mountProtectedShare = (mode, language) => {
+      const initialValue = buildCommunityInspirationDraft({
+        url: `/studio-api/history/protected-share/assets/0.${mode === 'video' ? 'webm' : 'png'}`,
+        meta: downloadMetaFromHistoryItem({
+          prompt: 'Protected media preview with its original prompt.',
+          width: 768, height: 1024, referenceCount: 0, resolutionTier: '2k',
+          ...(mode === 'video' ? { videoMotion: 'slow-pan', videoStyle: 'cinematic', videoQuality: 'high' } : {})
+        }, mode === 'video')
+      });
+      // Cover both the serialized share draft and directly supplied numeric metadata.
+      if (language === 'en') initialValue.generation.referenceCount = 0;
+      root.render(React.createElement(InspirationUploadDialog, {
+        key: `${mode}-${language}`, open: true, onClose: () => root.render(null), onSubmit: async () => {},
+        initialValue, t: createTranslator(language)
+      }));
+    };
+  });
+  for (const [mode, language] of ['image', 'video'].flatMap((mode) => ['zh-CN', 'en'].map((language) => [mode, language]))) {
+    await protectedPage.evaluate(([mode, language]) => window.__mountProtectedShare(mode, language), [mode, language]);
+    const selector = `.inspirationSharePreview ${mode === 'video' ? 'video' : 'img'}`;
+    await protectedPage.waitForFunction(({ selector, mode }) => {
+      const media = document.querySelector(selector);
+      return media && (mode === 'video' ? media.readyState >= 2 : media.naturalWidth > 0);
+    }, { selector, mode });
+    const resolved = await protectedPage.locator(selector).getAttribute('src');
+    assert.match(resolved, /^blob:/, 'Protected share previews must resolve media through authenticated fetch');
+    const parameters = await protectedPage.locator('.inspirationParameterSummary').innerText();
+    assert.match(parameters, language === 'en' ? /References\s*0/ : /参考图\s*0/, 'A zero reference count must not disappear from share metadata');
+    if (language === 'en') {
+      assert.doesNotMatch(await protectedPage.locator('.inspirationUploadPanel').innerText(), /[\u3400-\u9fff]/, 'English share dialogs must translate parameter labels');
+      for (const label of ['Width', 'Height', 'Resolution', ...(mode === 'video' ? ['Camera motion', 'Video style', 'Video quality'] : [])]) {
+        assert(parameters.includes(label), `English share metadata label is missing: ${label}`);
+      }
+    }
+    for (const value of ['768', '1024', '2k', ...(mode === 'video' ? ['slow-pan', 'cinematic', 'high'] : [])]) {
+      assert(parameters.includes(value), `Share metadata lost ${value}`);
+    }
+    await checkBounds(protectedPage, '.inspirationUploadPanel');
+    await protectedPage.screenshot({ path: `output/playwright/modal-protected-${mode}-${language}-mobile.png` });
+    await protectedPage.keyboard.press('Escape');
+    await protectedPage.waitForSelector('.inspirationUploadPanel', { state: 'detached' });
+    assert(await protectedPage.evaluate(async (url) => {
+      try { await fetch(url); return false; } catch { return true; }
+    }, resolved), 'Closing a share preview must revoke its blob URL');
+  }
+  assert(assetRequests.some((request) => request.url.endsWith('.png')));
+  assert(assetRequests.some((request) => request.url.endsWith('.webm')));
+  assert(assetRequests.every((request) => request.authorization === 'Bearer modal-smoke-token'));
+  assert.deepEqual(protectedErrors, []);
+  console.log(JSON.stringify({ ok: true, checks: ['per-result prompt and parameters', 'independent history prompt', 'nested dialog Escape and focus', 'mobile toolbar and share', 'long prompt reading and use', 'error dialog and copy', 'video layout and native keys', 'authenticated image and video share previews', 'bilingual share parameter labels and zero values', 'share preview blob cleanup'] }));
 } finally {
   if (browser) await browser.close();
   await server.close();

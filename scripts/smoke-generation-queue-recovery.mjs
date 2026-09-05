@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { clickGenerate, fillGenerationPrompt } from './smoke-ui-helpers.mjs';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/generation-queue-recovery.png`;
 const failedScreenshotPath = `${screenshotDir}/generation-queue-failed-message.png`;
 const runningScreenshotPath = `${screenshotDir}/generation-queue-running-cancel.png`;
@@ -463,8 +463,15 @@ try {
   assert(failedResult.body.includes('STUDIO_ALLOWED_ORIGINS'), 'Failed restored job did not show the allowed-origin explanation.', failedResult);
   assert(!failedResult.body.includes('上游返回了未识别的英文错误'), 'Failed restored job fell back to the generic English-error message.', failedResult);
   assert(failedResult.queueItems[0]?.className.includes('failed'), 'Failed restored job did not stay visible as a failed queue item.', failedResult);
-  assert(failedResult.queueItems[0]?.text.includes('STUDIO_ALLOWED_ORIGINS'), 'Failed queue card did not show the allowed-origin explanation.', failedResult);
+  assert(failedResult.queueItems[0]?.text.includes('查看错误详情'), 'Failed queue card must offer a compact error-details action.', failedResult);
+  assert(!failedResult.queueItems[0]?.text.includes('STUDIO_ALLOWED_ORIGINS'), 'Failed queue card must not expand the full error inline.', failedResult);
   assert(!failedResult.queueItems[0]?.text.includes('ORIGIN_NOT_ALLOWED'), 'Failed queue card exposed the raw upstream error instead of a readable explanation.', failedResult);
+  await failedPage.locator('.canvasQueueErrorSummary').first().click();
+  await failedPage.waitForSelector('.studioErrorDialog');
+  const errorDetails = await failedPage.locator('.studioErrorDialog').innerText();
+  assert(errorDetails.includes('STUDIO_ALLOWED_ORIGINS'), 'Error dialog must retain the readable allowed-origin explanation.', { errorDetails });
+  await failedPage.keyboard.press('Escape');
+  await failedPage.waitForSelector('.studioErrorDialog', { state: 'detached' });
   assert(failedResult.storedStatus === 'failed', 'Failed queue status was not saved back into the current session cache.', failedResult);
   assert(failedSessionSaveCount >= 1, 'Failed queue snapshot was not saved back to the history service.', { failedSessionSaveCount });
   await fillGenerationPrompt(failedPage, 'A retry after a restored failed generation should submit a fresh service job.');

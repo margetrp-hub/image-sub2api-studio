@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { clickGenerate, fillGenerationPrompt } from './smoke-ui-helpers.mjs';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/video-generation-route.png`;
 const providerSettingsKey = 'image-sub2api-studio:provider-settings:v1';
 const manualSecretKey = 'image-sub2api-studio:manual-provider-secret:v1';
@@ -34,7 +34,12 @@ try {
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 980 } });
   const browserErrors = [];
+  const failedRequests = [];
   page.on('pageerror', (error) => browserErrors.push(error.message));
+  page.on('response', (response) => {
+    if (response.status() >= 400) failedRequests.push({ url: response.url(), status: response.status() });
+  });
+  page.on('requestfailed', (request) => failedRequests.push({ url: request.url(), error: request.failure()?.errorText }));
   page.on('console', (message) => {
     if (['error', 'warning'].includes(message.type())) {
       browserErrors.push(`${message.type()}: ${message.text()}`);
@@ -42,6 +47,7 @@ try {
   });
 
   const requests = {
+    modelSync: [],
     models: [],
     videoCreates: [],
     videoPolls: [],
@@ -59,10 +65,33 @@ try {
     contentType: 'application/json',
     body: JSON.stringify({ ok: true, records: [], total: 0, nextOffset: null })
   }));
-  await page.route('**/studio-api/session', (route) => route.fulfill({
+  await page.route('**/studio-api/session**', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ ok: true, session: null })
+  }));
+  await page.route('**/studio-api/generation-jobs**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ ok: true, jobs: [] })
+  }));
+  await page.route('**/studio-api/model-sync', (route) => {
+    const body = route.request().postDataJSON();
+    requests.modelSync.push({ method: route.request().method(), gatewayBaseUrl: body.gatewayBaseUrl, providerType: body.providerType });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, models: [
+        { id: 'gpt-image-2', capabilities: ['image_generation'] },
+        { id: 'veo3', capabilities: ['video_generation'] },
+        { id: 'gpt-5.5' }
+      ] })
+    });
+  });
+  await page.route('**/api/v1/models', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ object: 'list', data: [] })
   }));
   await page.route(`${fakeBaseUrl}/models`, (route) => {
     requests.models.push({ method: route.request().method(), url: route.request().url() });
@@ -149,6 +178,12 @@ try {
   await page.goto(new URL('studio.html', baseUrl).toString(), { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.creationDesk.composerOpen', { timeout: 12000 });
   await page.locator('.workbenchModeSwitch button').filter({ hasText: 'Video' }).first().click();
+  const videoOptions = await page.locator('.singleParamsGrid select').allTextContents();
+  const videoOptionText = videoOptions.join('\n');
+  for (const label of ['Auto', 'Push in', 'Pull out', 'Orbit', 'Pan', 'Static', 'Cinematic', 'Product ad', 'Realistic', 'Animation']) {
+    assert(videoOptionText.includes(label), `Video parameter label was not translated: ${label}`, { videoOptions });
+  }
+  assert(!/[\u3400-\u9fff]/.test(videoOptionText), 'English video options must not contain Chinese UI labels.', { videoOptions });
   await fillGenerationPrompt(page, 'Five second product video, slow push-in camera, clean studio light, no captions.');
   await clickGenerate(page);
   await page.locator('.generationConfirmPrimary').click();
@@ -168,8 +203,11 @@ try {
     routeLabel: document.body.innerText.includes('/v1/video/generations')
   }), { providerSettingsKey, manualSecretKey, fakeSecret });
   result.browserErrors = browserErrors;
+  result.failedRequests = failedRequests;
 
-  assert(requests.models.length >= 1, 'Video provider did not attempt /v1/models model sync.', { requests, result });
+  assert(requests.modelSync.length >= 1, 'Video provider did not use the model-sync service bridge.', { requests, result });
+  assert(requests.modelSync.every((request) => request.method === 'POST' && request.gatewayBaseUrl === fakeBaseUrl && request.providerType === 'newapi-compatible'), 'Model sync did not preserve the configured provider.', { requests, result });
+  assert(requests.models.length === 0, 'A healthy model-sync bridge must not trigger a direct fallback.', { requests, result });
   assert(requests.videoCreates.length === 1, 'Video generation should create exactly one task.', { requests, result });
   assert(requests.videoCreates[0].url === `${fakeBaseUrl}/video/generations`, 'Video generation did not use /v1/video/generations.', { requests, result });
   assert(requests.videoCreates[0].body?.model === 'veo3', 'Video task did not use the configured video model.', { requests, result });
@@ -183,6 +221,8 @@ try {
   assert(!result.persistedSettings.includes(fakeSecret), 'Manual API key leaked into localStorage during video generation.', result);
   assert(result.sessionSecret === fakeSecret, 'Manual API key was not retained in sessionStorage.', result);
   assert(!result.hasSecretInDom, 'Manual API key leaked into visible page text.', result);
+  assert(browserErrors.length === 0, 'Video route produced unexpected browser errors or warnings.', result);
+  assert(failedRequests.length === 0, 'Video route had unexpected failed network requests.', result);
 
   console.log(JSON.stringify({
     ok: true,

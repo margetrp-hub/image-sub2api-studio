@@ -1,7 +1,7 @@
 {
   "name": "image-agent-studio",
   "private": true,
-  "version": "1.0.26",
+  "version": "1.0.27",
   "type": "module",
   "scripts": {
     "check:deploy": "node scripts/check-deploy-config.mjs",
@@ -32,6 +32,7 @@
     "check:css": "node scripts/check-css-cascade-map.mjs",
     "check:source": "node scripts/check-source-encoding.mjs",
     "check:errors": "node scripts/check-error-catalog.mjs",
+    "check:hardening": "npm run check:css && npm run check:errors && npm run check:storage-security && npm run check:standalone-auth && npm run smoke:data:integrity && npm run smoke:generation:dedupe && npm run smoke:provider-protocols && npm run smoke:backup && npm run smoke:session:isolation && npm run smoke:studio:modals && npm run smoke:history:lightbox && npm run smoke:community:prompt-flow",
     "check:repo": "node scripts/check-repo-clean.mjs",
     "check:release": "node scripts/check-release-packages.mjs",
     "check:inspiration-sources": "node scripts/check-inspiration-sources.mjs",
@@ -44,7 +45,7 @@
     "check:gateway": "node scripts/check-ai-gateway-contract.mjs",
     "check:sub2api": "node scripts/check-sub2api-contract.mjs",
     "check:server": "node --check apps/server/src/index.js && node --check apps/server/src/server.js && node --check apps/server/src/domain/schema.js && node --check apps/server/src/domain/types.js && node --check apps/server/src/repositories/historyRepository.js && node --check apps/server/src/storage/memoryAdapter.js && node --check apps/server/src/queue/stateMachine.js",
-    "check:local": "npm run build && npm run check:studio-build && npm run check:providers && npm run check:provider-protocols && npm run check:xai && npm run check:model-sync && npm run check:generation-executor && npm run check:service-config && npm run check:deploy && npm run check:docker && npm run check:desktop && npm run check:boundaries && npm run check:naming && npm run check:theme && npm run check:ui && npm run check:contracts && npm run check:server-go && npm run check:docs && npm run check:html && npm run check:source && npm run check:i18n && npm run check:env && npm run check:public-data && npm run check:repo && npm run smoke:persistence && npm run smoke:gateway:auth && npm run smoke:history && npm run smoke:history:idb && npm run smoke:projects && npm run smoke:history:queue && npm run smoke:generation:dedupe && npm run smoke:image:route && npm run smoke:newapi:route && npm run smoke:image:edit-route && npm run smoke:video:route && npm run smoke:xai:route && npm run smoke:session:modes && npm run smoke:references && npm run smoke:provider:security && npm run smoke:composer:layout && npm run smoke:canvas:performance && npm run smoke:canvas:blob-cleanup && npm run smoke:canvas:link && npm run smoke:history:windowing && npm run smoke:inspiration:windowing && npm run smoke:inspiration:reference-flow && npm run smoke:template:windowing && npm run smoke:language:en",
+    "check:local": "npm run build && npm run check:studio-build && npm run check:providers && npm run check:provider-protocols && npm run check:xai && npm run check:model-sync && npm run check:generation-executor && npm run check:service-config && npm run check:deploy && npm run check:docker && npm run check:desktop && npm run check:boundaries && npm run check:naming && npm run check:theme && npm run check:ui && npm run check:contracts && npm run check:server-go && npm run check:docs && npm run check:html && npm run check:source && npm run check:i18n && npm run check:env && npm run check:public-data && npm run check:repo && npm run smoke:persistence && npm run smoke:gateway:auth && npm run smoke:history && npm run smoke:history:idb && npm run smoke:projects && npm run smoke:history:queue && npm run smoke:generation:dedupe && npm run smoke:image:route && npm run smoke:newapi:route && npm run smoke:image:edit-route && npm run smoke:video:route && npm run smoke:xai:route && npm run smoke:session:modes && npm run smoke:references && npm run smoke:provider:security && npm run smoke:composer:layout && npm run smoke:canvas:performance && npm run smoke:canvas:blob-cleanup && npm run smoke:canvas:link && npm run smoke:history:windowing && npm run smoke:inspiration:windowing && npm run smoke:inspiration:reference-flow && npm run smoke:template:windowing && npm run smoke:language:en && npm run check:hardening",
     "history:service": "node scripts/image-agent-studio-history-service.mjs",
     "auth:create-admin": "node scripts/create-standalone-admin.mjs",
     "ops:backup": "node scripts/ops-backup.mjs",
@@ -71,6 +72,7 @@
     "smoke:history:queue": "npm exec --yes --package=playwright -- node scripts/smoke-generation-queue-recovery.mjs",
     "smoke:generation:dedupe": "node scripts/smoke-generation-job-dedupe.mjs",
     "smoke:backup": "node scripts/smoke-backup-restore.mjs",
+    "smoke:data:integrity": "node scripts/smoke-data-integrity.mjs",
     "smoke:image:route": "npm exec --yes --package=playwright -- node scripts/smoke-image-generation-route.mjs",
     "smoke:video:route": "npm exec --yes --package=playwright -- node scripts/smoke-video-generation-route.mjs",
     "smoke:xai:route": "npm exec --yes --package=playwright -- node scripts/smoke-xai-provider-route.mjs",

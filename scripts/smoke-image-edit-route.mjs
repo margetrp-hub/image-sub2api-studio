@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { clickGenerate, fillGenerationPrompt, uploadReferenceImage } from './smoke-ui-helpers.mjs';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/image-edit-route.png`;
 const fixtureDir = `${screenshotDir}/fixtures`;
 const providerSettingsKey = 'image-sub2api-studio:provider-settings:v1';

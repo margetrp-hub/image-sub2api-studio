@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/history-indexeddb-recovery.png`;
 
 function svgDataUrl(label, color) {

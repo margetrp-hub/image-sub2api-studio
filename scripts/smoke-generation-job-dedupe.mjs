@@ -1,10 +1,12 @@
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import fs from 'node:fs/promises';
 import http from 'node:http';
-import os from 'node:os';
 import path from 'node:path';
 
-const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-image-workbench-job-dedupe-'));
+const root = path.resolve(import.meta.dirname, '..');
+await fs.mkdir(path.join(root, 'tmp'), { recursive: true });
+const dataDir = await fs.mkdtemp(path.join(root, 'tmp', 'job-dedupe-'));
 const token = 'generation-job-dedupe-smoke-token';
 const port = 23000 + Math.floor(Math.random() * 1000);
 const gatewayPort = port + 1000;
@@ -88,6 +90,7 @@ try {
   const body = {
     apiKey: 'dedupe-smoke-key',
     gatewayBaseUrl,
+    images: [{ dataUrl: `data:image/png;base64,${tinyPngBase64}` }],
     request: {
       id: 'dedupejob1',
       clientRequestId: 'dedupejob1-client',
@@ -98,9 +101,10 @@ try {
       route: 'generations',
       fingerprint: 'dedupe-session|image|generations|gpt-image-2|same-prompt',
       model: 'gpt-image-2',
-      prompt: 'same prompt',
-      generationPrompt: 'same prompt',
+      prompt: 'same prompt\n  with indented details',
+      generationPrompt: 'same prompt\n  with indented details\n\nOutput requirements',
       size: '1024x1024',
+      resolutionTier: '1K',
       quality: 'medium',
       n: 1,
       count: 1
@@ -127,10 +131,30 @@ try {
   assert(second.duplicate === true, 'Second active duplicate should be marked as duplicate.', second);
   assert(second.job?.id === first.job?.id, 'Duplicate response should return the original active job.', { first, second });
 
+  const backup = await request('/studio-api/backup');
+  const restoreWhileActive = await fetch(`${baseUrl}/studio-api/backup/restore`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(backup)
+  });
+  assert(restoreWhileActive.status === 409, 'Restore must not replace data while a generation is active.');
+  assert((await restoreWhileActive.json()).error === 'BACKUP_RESTORE_JOBS_ACTIVE', 'Restore should explain the active job conflict.');
+  await Promise.all(Array.from({ length: 8 }, (_, index) => request('/studio-api/history', {
+    method: 'POST',
+    body: JSON.stringify({ id: `dedupe-history-${index}`, prompt: `Concurrent history ${index}` })
+  })));
+
   await new Promise((resolve) => setTimeout(resolve, 1200));
   const jobs = await request('/studio-api/generation-jobs?sessionId=dedupe-session');
   assert(jobs.jobs.length === 1, 'Only one persisted job should exist for duplicate active submissions.', jobs);
   assert(gatewayHits === 1, 'Duplicate active submissions should hit the gateway once.', { gatewayHits });
+  const history = await request('/studio-api/history');
+  assert(history.records.length === 9, 'Job completion and concurrent history saves must all persist.', history);
+  const generated = history.records.find((record) => record.id === first.job.id);
+  assert(generated?.prompt === body.request.prompt, 'Completed generation must retain multiline prompt.');
+  assert(generated?.generationPrompt === body.request.generationPrompt, 'Completed generation must retain actual generation prompt.');
+  assert(generated?.resolutionTier === '1K', 'Completed generation must retain resolution tier.');
+  assert(generated?.referenceCount === 1, 'Completed generation must retain reference count.');
 
   console.log(JSON.stringify({
     ok: true,
@@ -140,9 +164,13 @@ try {
     jobCount: jobs.jobs.length
   }, null, 2));
 } finally {
-  child.kill('SIGTERM');
-  gateway.close();
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  if (child.exitCode === null) {
+    const exited = once(child, 'exit');
+    child.kill('SIGTERM');
+    await exited;
+  }
+  await new Promise((resolve) => gateway.close(resolve));
+  await fs.rm(dataDir, { recursive: true, force: true });
 }
 
 if (stderr.trim()) {

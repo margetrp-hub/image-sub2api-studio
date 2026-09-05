@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const beforePath = `${screenshotDir}/history-session-before-open.png`;
 const afterPath = `${screenshotDir}/history-session-after-open.png`;
 

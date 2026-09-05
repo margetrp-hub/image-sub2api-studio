@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/inspiration-windowing.png`;
 const INITIAL_VISIBLE = 12;
 const TOTAL_ITEMS = 20;

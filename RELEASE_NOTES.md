@@ -1,5 +1,23 @@
 ﻿# Release Notes
 
+## 1.0.27
+
+This release hardens persistence, shared media, backup validation, and preview dialogs.
+
+- Per-user in-process locks prevent concurrent history, session, job, and community writes from overwriting acknowledged changes.
+- Multiline prompts preserve their internal formatting, and saved/shared results retain image and video generation parameters, including zero reference counts.
+- New shares own copies of local result media, so deleting the source history does not break those shares.
+- Video sessions persist MP4/WebM assets correctly, with validated byte-range reads.
+- Backup payloads and asset paths are validated before existing data changes; restores are blocked while generation jobs are active.
+- Authenticated image/video sharing previews release temporary blob URLs on close, with consistent English and Chinese parameter labels.
+- Prompt lightbox styles are simplified, and the local regression suite now includes data integrity, backup, and modal hardening checks.
+
+Verification: the complete `check:local` suite passed before the release-only version bump,
+including all 10 data-integrity tests and browser regressions with local/mock data.
+The file backend still requires a single writer process; prompts remain limited to 12,000
+characters. Existing shares are not migrated, and backup restoration is not a crash-atomic
+transaction. Real paid upstream generation and Go compilation/tests were not run.
+
 ## 1.0.26
 
 This release fixes preview readability and keeps shared creations tied to their original generation settings.

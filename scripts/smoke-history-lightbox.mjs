@@ -99,6 +99,8 @@ try {
 
   await page.keyboard.press('Escape');
   await page.waitForSelector('.lightboxOverlay', { state: 'detached', timeout: 8000 });
+  // Dialog focus restoration runs after the portal has unmounted.
+  await page.waitForFunction(() => document.activeElement?.classList.contains('resultPreviewButton'), null, { timeout: 5000 });
   const closed = await page.evaluate(() => document.activeElement?.className || '');
   assert(closed.includes('resultPreviewButton'), 'Closing the lightbox should restore focus to the result preview button.', { closed });
 

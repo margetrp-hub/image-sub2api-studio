@@ -75,11 +75,16 @@ export function downloadMetaFromHistoryItem(item, isVideo = false) {
     resolutionTier: item?.resolutionTier || '',
     outputFormat: item?.outputFormat || '',
     count: item?.count || '',
-    referenceCount: item?.referenceCount || '',
+    referenceCount: item?.referenceCount ?? '',
     routeLabel: item?.routeLabel || '',
     moderation: item?.moderation ?? '',
     duration: item?.duration || '',
     fps: item?.fps || '',
+    width: item?.width || '',
+    height: item?.height || '',
+    videoMotion: item?.videoMotion || '',
+    videoStyle: item?.videoStyle || '',
+    videoQuality: item?.videoQuality || '',
     id: item?.taskId || item?.id || item?.createdAt
   };
 }

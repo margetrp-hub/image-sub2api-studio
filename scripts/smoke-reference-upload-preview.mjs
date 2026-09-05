@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { deflateSync } from 'node:zlib';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/reference-upload-preview.png`;
 const lightboxScreenshotPath = `${screenshotDir}/reference-upload-lightbox.png`;
 const collapsedScreenshotPath = `${screenshotDir}/reference-upload-collapsed.png`;

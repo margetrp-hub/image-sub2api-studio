@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/template-windowing.png`;
 const INITIAL_VISIBLE = 12;
 const TOTAL_ITEMS = 20;
@@ -89,22 +89,21 @@ try {
   }, templateCases());
 
   await page.goto(new URL('studio.html', baseUrl).toString(), { waitUntil: 'networkidle' });
-  await page.evaluate(() => {
-    document.querySelector('[data-workspace="inspiration"]')?.click();
-  });
-  await page.waitForTimeout(500);
-  await page.locator('.categoryTile').first().click();
-  await page.waitForTimeout(500);
+  await page.locator('[data-workspace="inspiration"]').click();
+  await page.locator('.galleryCategoryFilter select').selectOption('Windowing Test');
+  await page.waitForFunction((count) => document.querySelectorAll('.caseTile').length === count, INITIAL_VISIBLE);
+  await page.waitForFunction(() => document.querySelector('.caseTile img')?.getAttribute('src')?.startsWith('data:image/svg+xml'));
 
   const initial = await page.evaluate(() => ({
     cards: document.querySelectorAll('.caseTile').length,
-    categories: document.querySelectorAll('.categoryTile').length,
+    selectedCategory: document.querySelector('.galleryCategoryFilter select')?.value || '',
     hasLoadMore: Boolean(document.querySelector('.inspirationCanvasGrid .galleryLoadMore')),
     body: document.body.innerText.slice(0, 1000),
     firstImageSrc: document.querySelector('.caseTile img')?.getAttribute('src') || '',
     hasGarbledSource: document.body.innerText.includes('\u7eff\u4f69\u94fe\u7a3fra')
   }));
   assert(initial.cards === INITIAL_VISIBLE, `Expected ${INITIAL_VISIBLE} initial template cards, got ${initial.cards}.`, initial);
+  assert(initial.selectedCategory === 'Windowing Test', 'Template category filter did not select the fixture category.', initial);
   assert(initial.hasLoadMore, 'Expected template load-more button to be visible.', initial);
   assert(initial.firstImageSrc.startsWith('data:image/svg+xml'), 'Missing thumbnail should fall back to the visible card original image only.', initial);
   assert(!initial.hasGarbledSource, 'Garbled source metadata should not be displayed on inspiration cards.', initial);

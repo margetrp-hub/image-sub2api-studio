@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/language-english.png`;
 
 function assert(condition, message, evidence) {
@@ -221,7 +221,14 @@ try {
     result
   );
   assert(result.body.includes('Result unknown'), 'English mode did not render queue status in English.', result);
-  assert(result.body.includes('The Studio service rejected this request'), 'English mode did not localize queue error explanations.', result);
+  assert(result.queueButtonLabels.includes('View error details'), 'English mode did not localize the compact error action.', result);
+  await page.locator('.canvasQueueItem.failed .canvasQueueErrorSummary').click();
+  await page.waitForSelector('.studioErrorDialog');
+  const errorDetails = await page.locator('.studioErrorDialog').innerText();
+  assert(errorDetails.includes('The Studio service rejected this request'), 'English mode did not localize queue error explanations in the details dialog.', { errorDetails });
+  assert(!/[\u4e00-\u9fff]/.test(errorDetails), 'English error dialog still shows CJK UI text.', { errorDetails });
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.studioErrorDialog', { state: 'detached' });
   assert(result.body.includes('Prompt') && result.body.includes('AI suggestion'), 'English mode did not localize the right prompt workspace title/source.', result);
   assert(result.body.includes('Subject') && result.body.includes('Scene'), 'English mode did not render the prompt workspace sections.', result);
   assert(result.body.includes('Generate this'), 'English mode did not localize the prompt suggestion generate action.', result);
@@ -240,6 +247,7 @@ try {
   console.log(JSON.stringify({
     ok: true,
     screenshotPath,
+    errorDetails,
     result
   }, null, 2));
 } finally {

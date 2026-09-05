@@ -1113,8 +1113,8 @@ function CreationDesk({
   };
   const aspectLabel = (item) => (item.value === 'custom' ? t('params.manual', '手动') : item.label);
   const customSizeLabel = (item) => (item.value === 'auto' ? t('params.auto', '自动') : item.label);
-  const videoMotionLabel = (item) => (item.value === 'auto' ? t('params.auto', '自动') : item.label);
-  const videoStyleLabel = (item) => (item.value === 'auto' ? t('params.auto', '自动') : item.label);
+  const videoMotionLabel = (item) => t(`params.motionOptions.${item.value}`, item.label);
+  const videoStyleLabel = (item) => t(`params.styleOptions.${item.value}`, item.label);
   const moderationLabel = (value) => (value === 'auto' ? t('params.auto', '自动') : qualityLabel(value));
   const resolutionTierLabel = (item) => RESOLUTION_TIER_LABELS[item.value] || item.label;
   const imageCountSuffix = t('params.imageCountSuffix', '张');

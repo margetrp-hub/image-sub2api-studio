@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LoaderCircle, Upload, X } from 'lucide-react';
 import { StudioModal } from './studioModal.jsx';
+import { ProtectedStudioImage, ProtectedStudioVideo } from './media.jsx';
 import '../../styles/studio.inspiration-share.css';
 
 const PARAMETER_LABELS = {
@@ -16,7 +17,12 @@ const PARAMETER_LABELS = {
   outputFormat: '格式',
   moderation: '审核',
   count: '数量',
-  referenceCount: '参考图'
+  referenceCount: '参考图',
+  width: '宽度',
+  height: '高度',
+  videoMotion: '运镜',
+  videoStyle: '视频风格',
+  videoQuality: '视频画质'
 };
 
 export function InspirationUploadDialog({ open, initialValue = null, onClose, onSubmit, t = (key, fallback) => fallback || key }) {
@@ -28,7 +34,7 @@ export function InspirationUploadDialog({ open, initialValue = null, onClose, on
   const [error, setError] = useState('');
   const canSubmit = prompt.trim().length >= 8;
   const parameterEntries = useMemo(() => Object.entries(initialValue?.generation || {})
-    .filter(([key, value]) => PARAMETER_LABELS[key] && String(value || '').trim()), [initialValue]);
+    .filter(([key, value]) => PARAMETER_LABELS[key] && String(value ?? '').trim()), [initialValue]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,8 +91,8 @@ export function InspirationUploadDialog({ open, initialValue = null, onClose, on
         {initialValue?.image ? (
           <div className="inspirationSharePreview">
             {initialValue.generation?.mode === 'video'
-              ? <video src={initialValue.image} controls playsInline preload="metadata" />
-              : <img src={initialValue.image} alt={initialValue.imageAlt || title || t('gallery.sharePreview', '待分享作品')} />}
+              ? <ProtectedStudioVideo src={initialValue.image} alt={initialValue.imageAlt || title} />
+              : <ProtectedStudioImage src={initialValue.image} alt={initialValue.imageAlt || title || t('gallery.sharePreview', '待分享作品')} />}
             <div>
               <strong>{t('gallery.sharedContent', '将一并分享')}</strong>
               <span>{t('gallery.sharedImage', '生成作品')}</span>
@@ -98,7 +104,7 @@ export function InspirationUploadDialog({ open, initialValue = null, onClose, on
         {parameterEntries.length ? (
           <div className="inspirationParameterSummary" aria-label={t('gallery.sharedParameters', '生成参数')}>
             {parameterEntries.map(([key, value]) => (
-              <span key={key}><small>{PARAMETER_LABELS[key]}</small>{String(value)}</span>
+              <span key={key}><small>{t(`shareParameters.${key}`, PARAMETER_LABELS[key])}</small>{String(value)}</span>
             ))}
           </div>
         ) : null}

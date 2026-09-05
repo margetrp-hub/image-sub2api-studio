@@ -14,7 +14,12 @@ const SHARE_PARAMETER_LABELS = [
   ['count', '数量'],
   ['referenceCount', '参考图'],
   ['duration', '时长'],
-  ['fps', '帧率']
+  ['fps', '帧率'],
+  ['width', '宽度'],
+  ['height', '高度'],
+  ['videoMotion', '运镜'],
+  ['videoStyle', '视频风格'],
+  ['videoQuality', '视频画质']
 ];
 
 function clean(value) {

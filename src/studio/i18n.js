@@ -483,6 +483,20 @@ export const dictionaries = {
       output: '输出',
       motion: '镜头运动',
       style: '风格',
+      motionOptions: {
+        auto: '自动',
+        push_in: '推近',
+        pull_out: '拉远',
+        orbit: '环绕',
+        pan: '横移',
+        static: '固定'
+      },
+      styleOptions: {
+        cinematic: '电影感',
+        product_ad: '产品广告',
+        realistic: '写实',
+        animation: '动画'
+      },
       videoQuality: '视频画质',
       negativePrompt: '负面提示词',
       negativePromptPlaceholder: '例如：不要字幕、水印、畸变、闪烁、手部变形',
@@ -494,6 +508,26 @@ export const dictionaries = {
         '2k': '分辨率要求：2K，约 2048px 级别，细节更丰富，适合放大查看。',
         '4k': '分辨率要求：4K，约 4096px 级别，超高清细节，适合高分辨率展示。'
       }
+    },
+    shareParameters: {
+      duration: '时长',
+      fps: '帧率',
+      model: '模型',
+      providerId: '提供方',
+      routeLabel: '接口',
+      size: '尺寸',
+      aspectRatio: '比例',
+      quality: '画质',
+      resolutionTier: '分辨率',
+      outputFormat: '格式',
+      moderation: '审核',
+      count: '数量',
+      referenceCount: '参考图',
+      width: '宽度',
+      height: '高度',
+      videoMotion: '运镜',
+      videoStyle: '视频风格',
+      videoQuality: '视频画质'
     },
     lightbox: {
       imageAlt: '生成结果',
@@ -1305,6 +1339,20 @@ export const dictionaries = {
       output: 'Output',
       motion: 'Camera motion',
       style: 'Style',
+      motionOptions: {
+        auto: 'Auto',
+        push_in: 'Push in',
+        pull_out: 'Pull out',
+        orbit: 'Orbit',
+        pan: 'Pan',
+        static: 'Static'
+      },
+      styleOptions: {
+        cinematic: 'Cinematic',
+        product_ad: 'Product ad',
+        realistic: 'Realistic',
+        animation: 'Animation'
+      },
       videoQuality: 'Video quality',
       negativePrompt: 'Negative prompt',
       negativePromptPlaceholder: 'Example: no subtitles, watermark, distortion, flicker, malformed hands',
@@ -1316,6 +1364,26 @@ export const dictionaries = {
         '2k': 'Resolution target: 2K, roughly 2048px class, with richer detail for closer viewing.',
         '4k': 'Resolution target: 4K, roughly 4096px class, with ultra-high-detail output for high-resolution display.'
       }
+    },
+    shareParameters: {
+      duration: 'Duration',
+      fps: 'Frame rate',
+      model: 'Model',
+      providerId: 'Provider',
+      routeLabel: 'Endpoint',
+      size: 'Size',
+      aspectRatio: 'Aspect ratio',
+      quality: 'Quality',
+      resolutionTier: 'Resolution',
+      outputFormat: 'Format',
+      moderation: 'Moderation',
+      count: 'Count',
+      referenceCount: 'References',
+      width: 'Width',
+      height: 'Height',
+      videoMotion: 'Camera motion',
+      videoStyle: 'Video style',
+      videoQuality: 'Video quality'
     },
     lightbox: {
       imageAlt: 'Generated image',

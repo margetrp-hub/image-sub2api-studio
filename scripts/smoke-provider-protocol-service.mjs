@@ -160,6 +160,7 @@ function startService(port, providerPort) {
       PORT: String(port),
       STUDIO_HISTORY_HOST: '127.0.0.1',
       STUDIO_AUTH_MODE: 'standalone',
+      STUDIO_USER_PROVIDER_ONLY: 'false',
       STUDIO_DATA_DIR: dataDir,
       STUDIO_AUTH_DB_PATH: databasePath,
       STUDIO_PROVIDER_BASE_URL: `http://127.0.0.1:${providerPort}`,

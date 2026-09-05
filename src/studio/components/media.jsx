@@ -10,7 +10,7 @@ function isPublicLibraryAsset(value) {
   return String(value || '').startsWith('/studio-api/library-assets/');
 }
 
-export function ProtectedStudioImage({ src, fallbackSrc = '', alt = '', fallback = null, rootMargin = '420px' }) {
+function ProtectedStudioMedia({ src, fallbackSrc = '', alt = '', fallback = null, rootMargin = '420px', mediaType = 'image' }) {
   const holderRef = useRef(null);
   const [shouldResolve, setShouldResolve] = useState(() => {
     const value = String(src || '');
@@ -115,7 +115,14 @@ export function ProtectedStudioImage({ src, fallbackSrc = '', alt = '', fallback
   }
   return (
     <span ref={holderRef} className="protectedStudioImage isLoaded">
-      <img
+      {mediaType === 'video' ? <video
+        src={resolvedSrc}
+        aria-label={alt}
+        controls
+        playsInline
+        preload="metadata"
+        onError={() => setFailed(true)}
+      /> : <img
         src={resolvedSrc}
         alt={alt}
         loading="lazy"
@@ -134,9 +141,17 @@ export function ProtectedStudioImage({ src, fallbackSrc = '', alt = '', fallback
           event.currentTarget.hidden = true;
           setFailed(true);
         }}
-      />
+      />}
     </span>
   );
+}
+
+export function ProtectedStudioImage(props) {
+  return <ProtectedStudioMedia {...props} />;
+}
+
+export function ProtectedStudioVideo(props) {
+  return <ProtectedStudioMedia {...props} mediaType="video" />;
 }
 
 export function ProtectedHistoryThumb(props) {

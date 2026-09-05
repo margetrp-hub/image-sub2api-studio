@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { clickGenerate, fillGenerationPrompt } from './smoke-ui-helpers.mjs';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = 'output/playwright';
 const screenshotPath = `${screenshotDir}/newapi-route.png`;
 const providerSettingsKey = 'image-sub2api-studio:provider-settings:v1';
 const manualSecretKey = 'image-sub2api-studio:manual-provider-secret:v1';

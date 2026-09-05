@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-const screenshotPath = 'D:/wiki/image-sub2api-studio/output/playwright/composer-empty-compact-rerun.png';
+const screenshotPath = 'output/playwright/composer-empty-compact-rerun.png';
 const layoutKey = 'image-sub2api-studio:workbench-layout:v7';
 const sessionKey = 'image-sub2api-studio:current-session:v1';
 

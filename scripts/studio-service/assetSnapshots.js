@@ -23,10 +23,43 @@ export async function listFilesRecursive(rootDir, baseDir = rootDir) {
 }
 
 export function safeBackupAssetPath(rawPath) {
-  const value = String(rawPath || '').replace(/\\/g, '/');
-  const segments = value.split('/').filter(Boolean);
-  if (!segments.length || segments.some((segment) => segment === '..' || segment.includes('\0'))) return '';
+  if (typeof rawPath !== 'string') return '';
+  const value = rawPath.replace(/\\/g, '/');
+  const segments = value.split('/');
+  if (!segments.length || segments.some((segment) => !segment || segment === '.' || segment === '..'
+    || /[<>:"|?*\x00-\x1f]/.test(segment) || /[. ]$/.test(segment)
+    || /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(segment))) return '';
   return segments.join('/');
+}
+
+export function validateAssetSnapshot(assets) {
+  const invalid = () => {
+    const error = new Error('BACKUP_ASSET_INVALID');
+    error.status = 400;
+    return error;
+  };
+  if (!Array.isArray(assets)) throw invalid();
+  const seen = new Set();
+  const snapshot = assets.map((asset) => {
+    const safePath = safeBackupAssetPath(asset?.path);
+    if (!safePath || seen.has(safePath.toLowerCase()) || typeof asset?.data !== 'string'
+      || !Number.isSafeInteger(asset.bytes) || asset.bytes < 0
+      || asset.data.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(asset.data)) {
+      throw invalid();
+    }
+    const buffer = Buffer.from(asset.data, 'base64');
+    if (buffer.length !== asset.bytes || buffer.toString('base64') !== asset.data) throw invalid();
+    seen.add(safePath.toLowerCase());
+    return { path: safePath, bytes: asset.bytes, data: asset.data };
+  });
+  // A file cannot also be the parent directory of another file, on any host.
+  for (const asset of snapshot) {
+    const segments = asset.path.toLowerCase().split('/');
+    for (let depth = 1; depth < segments.length; depth++) {
+      if (seen.has(segments.slice(0, depth).join('/'))) throw invalid();
+    }
+  }
+  return snapshot;
 }
 
 export async function readAssetSnapshot(auth) {
@@ -47,15 +80,12 @@ export async function readAssetSnapshot(auth) {
 }
 
 export async function restoreAssetSnapshot(auth, assets) {
+  const snapshot = validateAssetSnapshot(assets);
   const root = path.join(auth.userDir, 'assets');
   await fs.rm(root, { recursive: true, force: true });
   await fs.mkdir(root, { recursive: true });
-  for (const asset of assets) {
-    const safePath = safeBackupAssetPath(asset?.path);
-    if (!safePath || typeof asset?.data !== 'string') continue;
-    const filePath = path.join(root, ...safePath.split('/'));
-    const relative = path.relative(root, filePath);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) continue;
+  for (const asset of snapshot) {
+    const filePath = path.join(root, ...asset.path.split('/'));
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, Buffer.from(asset.data, 'base64'));
   }
