@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.0.26 - 2026-09-05
+
+- Keep each history result tied to its own prompt, model, size, and download/share metadata.
+- Use independent, keyboard-accessible dialogs for image/video previews, full prompts, sharing, and queue errors.
+- Give prompt-only previews a full reading area and keep copy/use actions visible while scrolling.
+- Align download, share, and close controls at the top right on desktop and mobile; remove the empty video side column.
+- Preserve video type and generation settings when sharing to the inspiration library.
+- Add browser coverage for nested dialogs, per-result metadata, mobile geometry, prompt use, and native video controls.
+
 ## 1.0.14 - 2026-08-16
 
 - Made the assistant route visibly independent from individual provider editors;

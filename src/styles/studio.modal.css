@@ -1,0 +1,83 @@
+.studioModalOverlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 16px !important;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.32) !important;
+  backdrop-filter: blur(10px);
+}
+.studioModalOverlay.inspirationUploadOverlay { z-index: 1010 !important; }
+.studioModalPanel {
+  box-sizing: border-box;
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  border: 1px solid var(--studio-border, #dfe1e6);
+  border-radius: 8px;
+  background: var(--studio-surface-strong, #fff);
+  color: var(--studio-text, #202124);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+  outline: none;
+  letter-spacing: 0;
+}
+.studioModalAccessibleTitle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.studioModalPanel .studioModalClose {
+  position: static !important;
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  padding: 0 !important;
+  border: 1px solid var(--studio-border, #dfe1e6) !important;
+  border-radius: 8px !important;
+  color: var(--studio-text, #202124) !important;
+  background: var(--studio-surface-soft, #f5f6f8) !important;
+  cursor: pointer;
+}
+.studioModalCopy {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--studio-border, #dfe1e6);
+  border-radius: 8px;
+  background: var(--studio-surface-soft, #f5f6f8);
+  color: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.studioModalPanel button:focus-visible, .studioModalPanel a:focus-visible {
+  outline: 2px solid var(--studio-primary, #007aff) !important;
+  outline-offset: 2px;
+}
+.studioErrorDialog { width: min(680px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+.studioErrorDialog header { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--studio-border, #dfe1e6); }
+.studioErrorDialog header strong { flex: 1; font-size: 16px; }
+.studioErrorDialog pre { min-height: 0; overflow: auto; margin: 0; padding: 20px; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 14px; line-height: 1.65; }
+.studioLayout .creationDesk .canvasQueueDock .canvasQueueItem > .canvasQueueErrorSummary {
+  position: static !important; grid-column: 3 !important; grid-row: 1 !important;
+  width: auto !important; max-width: 100% !important; min-width: 0 !important;
+  height: 24px !important; min-height: 24px !important; padding: 0 4px !important;
+  display: block !important; overflow: hidden !important; text-overflow: ellipsis !important;
+  white-space: nowrap !important; font-size: 11px !important; color: #b22732 !important;
+  transform: none !important; text-align: left !important;
+}

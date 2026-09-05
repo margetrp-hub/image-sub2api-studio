@@ -13,8 +13,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Check,
   Copy,
-  ChevronDown,
-  ChevronUp,
   Download,
   Filter,
   History,
@@ -67,8 +65,7 @@ import {
 
 import { ProtectedHistoryThumb, ProtectedStudioImage } from './media.jsx';
 import '../../styles/studio.gallery-filters.css';
-import { Lightbox, ResultGrid, VideoResultGrid } from './resultDisplay.jsx';
-import { PromptSectionList } from './promptTools.jsx';
+import { Lightbox, ResultGrid, VideoLightbox, VideoResultGrid } from './resultDisplay.jsx';
 
 const INITIAL_TEMPLATE_LIMIT = 12;
 const TEMPLATE_PAGE_SIZE = 12;
@@ -138,7 +135,7 @@ function CaseCard({ item, selected, onSelect, onPreview, favorite, onToggleFavor
             onPreview(item);
           }}
         >
-          {(image || fallback) ? (
+          {item.generation?.mode === 'video' ? <video src={displayResultUrl(item.image)} muted playsInline preload="metadata" /> : (image || fallback) ? (
             <ProtectedStudioImage
               src={image || fallback}
               fallbackSrc={image && fallback !== image ? fallback : ''}
@@ -292,9 +289,10 @@ function HistoryCard({ item, selected, onSelect, onDelete, onShare, t = (key, fa
   const resultCount = resultItems.length || (item.displayResultUrls?.length || item.resultUrls?.length || 0);
   const usage = item.usageSummary || item.costSummary || '';
   const isVideo = item.mode === 'video' || item.kind === 'video';
+  const firstResultMeta = downloadMetaFromHistoryItem(resultItems[0] || item, isVideo);
   const extension = isVideo ? resultVideoExtension(resultUrl) : resultExtension(resultUrl, item.outputFormat || 'png');
   const downloadName = buildStudioDownloadFilename({
-    ...downloadMetaFromHistoryItem(item, isVideo),
+    ...firstResultMeta,
     index: 0,
     extension
   });
@@ -332,7 +330,7 @@ function HistoryCard({ item, selected, onSelect, onDelete, onShare, t = (key, fa
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onShare(resultUrl, 0, downloadMetaFromHistoryItem(item, isVideo));
+              onShare(resultUrl, 0, firstResultMeta);
             }}
             aria-label={t('lightbox.share', '分享到灵感库')}
             title={t('lightbox.share', '分享到灵感库')}
@@ -348,35 +346,31 @@ function HistoryCard({ item, selected, onSelect, onDelete, onShare, t = (key, fa
   );
 }
 
-function HistoryPromptDisclosure({ prompt, t = (key, fallback) => fallback || key }) {
-  const [expanded, setExpanded] = useState(false);
+function HistoryPromptDisclosure({ prompt, onPreview, t = (key, fallback) => fallback || key }) {
   const value = String(prompt || '').trim();
   if (!value) {
     return <p className="promptEmptyText">{t('gallery.promptUnavailable', '暂无可用提示词')}</p>;
   }
   return (
-    <div className={`historyPromptDisclosure ${expanded ? 'isExpanded' : ''}`}>
+    <div className="historyPromptDisclosure">
       <button
         type="button"
         className="historyPromptToggle"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((current) => !current)}
+        aria-haspopup="dialog"
+        onClick={onPreview}
       >
-        <span>{expanded ? t('gallery.collapsePrompt', '收起完整提示词') : t('gallery.expandPrompt', '查看完整提示词')}</span>
-        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        <span>{t('gallery.expandPrompt', '查看完整提示词')}</span>
+        <MessageSquareText size={14} />
       </button>
-      {expanded ? (
-        <div className="historyPromptExpanded">
-          <PromptSectionList prompt={value} t={t} />
-        </div>
-      ) : (
-        <p className="historyPromptExcerpt">{compact(value, 280)}</p>
-      )}
+      <p className="historyPromptExcerpt">{compact(value, 280)}</p>
     </div>
   );
 }
 
 function HistoryDetailPanel({ item, onOpenWorkspace, onShare, t = (key, fallback) => fallback || key }) {
+  const [preview, setPreview] = useState(null);
+  useEffect(() => setPreview(null), [item?.id]);
+
   if (!item) {
     return (
       <section className="workspaceEmptyPanel">
@@ -391,10 +385,25 @@ function HistoryDetailPanel({ item, onOpenWorkspace, onShare, t = (key, fallback
   const resultItems = historyResultItems(item);
   const urls = resultItems.map((result) => result.displayUrl || result.url).filter(Boolean);
   const downloadMeta = downloadMetaFromHistoryItem(item, isVideo);
+  const resultMetadata = resultItems.map((result) => downloadMetaFromHistoryItem(result, isVideo));
+  const previewMeta = resultMetadata[preview?.index] || downloadMeta;
   const promptItems = resultItems.length ? resultItems : [{ id: item.id, prompt: item.prompt || item.generationPrompt || '' }];
   const meta = isVideo
     ? [item.model, item.aspectRatio || item.aspect, item.duration ? `${item.duration}s` : '', item.fps ? `${item.fps}fps` : ''].filter(Boolean)
     : [item.model, item.resolutionTier ? (RESOLUTION_TIER_LABELS[item.resolutionTier] || item.resolutionTier) : item.size, item.quality ? QUALITY_LABELS[item.quality] || item.quality : '', item.outputFormat ? OUTPUT_FORMAT_LABELS[item.outputFormat] || item.outputFormat : ''].filter(Boolean);
+  const openPreview = (url, index) => setPreview({ url, index });
+  const movePreview = (direction) => {
+    setPreview((current) => {
+      if (!current) return current;
+      const nextIndex = current.index + direction;
+      if (nextIndex < 0 || nextIndex >= urls.length) return current;
+      return {
+        ...current,
+        index: nextIndex,
+        url: urls[nextIndex]
+      };
+    });
+  };
 
   return (
     <section className="historyWorkspacePanel">
@@ -406,7 +415,7 @@ function HistoryDetailPanel({ item, onOpenWorkspace, onShare, t = (key, fallback
             {promptItems.slice(0, 6).map((result, index) => (
               <article className="historyPromptItem" key={result.id || `${result.displayUrl || result.url || 'prompt'}-${index}`}>
                 <strong>#{index + 1}</strong>
-                <HistoryPromptDisclosure prompt={result.generationPrompt || result.prompt || item.generationPrompt || item.prompt} t={t} />
+                <HistoryPromptDisclosure prompt={result.generationPrompt || result.prompt || item.generationPrompt || item.prompt} onPreview={() => setPreview({ index, promptOnly: true })} t={t} />
               </article>
             ))}
           </div>
@@ -418,10 +427,39 @@ function HistoryDetailPanel({ item, onOpenWorkspace, onShare, t = (key, fallback
         </button>
       </div>
       {isVideo ? (
-        <VideoResultGrid urls={urls} downloadMeta={downloadMeta} onPreview={() => {}} onShare={onShare} t={t} />
+        <VideoResultGrid urls={urls} downloadMeta={downloadMeta} resultMetadata={resultMetadata} onPreview={openPreview} onShare={onShare} t={t} />
       ) : (
-        <ResultGrid urls={urls} outputFormat={item.outputFormat || 'png'} downloadMeta={downloadMeta} onPreview={() => {}} onShare={onShare} t={t} />
+        <ResultGrid urls={urls} outputFormat={item.outputFormat || 'png'} downloadMeta={downloadMeta} resultMetadata={resultMetadata} onPreview={openPreview} onShare={onShare} t={t} />
       )}
+      {preview ? (
+        isVideo && !preview.promptOnly ? (
+          <VideoLightbox
+            url={preview.url}
+            index={preview.index}
+            total={urls.length}
+            downloadMeta={previewMeta}
+            onShare={onShare}
+            onPrevious={preview.index > 0 ? () => movePreview(-1) : undefined}
+            onNext={preview.index < urls.length - 1 ? () => movePreview(1) : undefined}
+            onClose={() => setPreview(null)}
+            t={t}
+          />
+        ) : (
+          <Lightbox
+            url={preview.url}
+            promptOnly={preview.promptOnly}
+            index={preview.index}
+            total={urls.length}
+            outputFormat={previewMeta.outputFormat || item.outputFormat || 'png'}
+            downloadMeta={previewMeta}
+            onShare={onShare}
+            onPrevious={preview.index > 0 ? () => movePreview(-1) : undefined}
+            onNext={preview.index < urls.length - 1 ? () => movePreview(1) : undefined}
+            onClose={() => setPreview(null)}
+            t={t}
+          />
+        )
+      ) : null}
     </section>
   );
 }
@@ -518,7 +556,7 @@ export function GalleryWorkspacePanel({
   const useLibraryItem = (item) => {
     onSelect(item);
     onAppendTemplate?.(item);
-    onOpenWorkspace?.(item?.kind === 'video-inspiration' ? 'video' : 'image');
+    onOpenWorkspace?.(item?.kind === 'video-inspiration' || item?.generation?.mode === 'video' ? 'video' : 'image');
   };
   const selectLibraryItem = (item) => {
     if (isVideo) {

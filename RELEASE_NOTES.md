@@ -1,5 +1,19 @@
 ﻿# Release Notes
 
+## 1.0.26
+
+This release fixes preview readability and keeps shared creations tied to their original generation settings.
+
+- History previews and shares now use the selected result's prompt and parameters.
+- Full prompts and queue errors open in independent dialogs with internal scrolling and copy actions.
+- Pure text previews no longer reserve space for a missing image.
+- Image/video download, share, and close controls share a compact top-right toolbar.
+- Nested dialogs handle Escape and keyboard focus without closing the underlying preview.
+- Video sharing retains its media type, duration, and frame rate in the inspiration library.
+
+Verification: production build, source/i18n/UI checks, Studio modal flows, history lightbox/session/windowing,
+community prompt flow, inspiration prompt/reference flow, composer layout, and standalone service smoke checks.
+
 ## 1.0.14
 
 This release makes assistant routing explicit in the provider library and adds

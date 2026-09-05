@@ -3,7 +3,7 @@ import { createServer } from 'vite';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const screenshotDir = 'D:/wiki/image-sub2api-studio/output/playwright';
+const screenshotDir = path.resolve('output/playwright');
 const fixtureDir = `${screenshotDir}/fixtures`;
 const pngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAAWElEQVR42u3OQQ0AAAgDMMTrf2YKBhhoKrQydc1wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgOwQ0AAEEp43RAAAAAElFTkSuQmCC';
 const layoutKey = 'image-sub2api-studio:workbench-layout:v7';
@@ -200,13 +200,15 @@ async function runScenario(browser, baseUrl, files, viewport, name, options = {}
     const errorSummary = page.locator('.canvasQueueErrorSummary').first();
     if (await errorSummary.count()) {
       await errorSummary.click();
-      assert(await errorSummary.getAttribute('aria-expanded') === 'true', `${name}: queue error details should expand on click.`);
-      const expandedStyle = await errorSummary.locator('span').evaluate((node) => ({
+      await page.waitForSelector('.studioErrorDialog');
+      const expandedStyle = await page.locator('.studioErrorDialog pre').evaluate((node) => ({
         display: getComputedStyle(node).display,
         whiteSpace: getComputedStyle(node).whiteSpace,
         height: node.getBoundingClientRect().height
       }));
-      assert(expandedStyle.display !== 'none' && expandedStyle.whiteSpace === 'normal' && expandedStyle.height > 12, `${name}: expanded queue error should show readable wrapped text.`, expandedStyle);
+      assert(expandedStyle.display !== 'none' && expandedStyle.whiteSpace === 'pre-wrap' && expandedStyle.height > 12, `${name}: error dialog should show readable wrapped text.`, expandedStyle);
+      await page.keyboard.press('Escape');
+      await page.waitForSelector('.studioErrorDialog', { state: 'detached' });
     }
   }
   if (referencesOpen) {

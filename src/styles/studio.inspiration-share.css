@@ -1,0 +1,24 @@
+.studioModalPanel.inspirationUploadPanel { width: min(680px, calc(100vw - 32px)) !important; max-height: calc(100dvh - 32px) !important; padding: 0 !important; overflow: hidden; }
+.inspirationUploadForm { display: flex; flex-direction: column; max-height: calc(100dvh - 34px); margin: 0; }
+.inspirationUploadForm .settingsHeader { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--studio-border, #dfe1e6); }
+.inspirationUploadForm .settingsHeader > div { min-width: 0; }
+.inspirationUploadForm .settingsHeader span { font-size: 12px; color: var(--studio-muted); }
+.inspirationUploadForm .settingsHeader h2 { margin: 4px 0; font-size: 18px; line-height: 1.4; }
+.inspirationUploadForm .settingsHeader p { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--studio-muted); }
+.inspirationShareBody { min-height: 0; overflow-y: auto; display: grid; gap: 16px; padding: 20px; }
+.inspirationShareBody > * { min-width: 0; }
+.inspirationSharePreview { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.inspirationSharePreview > img, .inspirationSharePreview > video { width: 104px !important; height: 88px !important; flex: 0 0 104px; object-fit: contain; border-radius: 8px; background: #151719; }
+.inspirationSharePreview > div { min-width: 0; display: grid; gap: 5px; }
+.inspirationSharePreview strong { font-size: 13px; }
+.inspirationSharePreview span { font-size: 12px; color: var(--studio-muted); }
+.inspirationParameterSummary { display: flex; flex-wrap: wrap; gap: 6px; }
+.inspirationParameterSummary > span { display: inline-flex; flex-wrap: wrap; gap: 6px; max-width: 100%; padding: 5px 8px; border: 1px solid var(--studio-border, #dfe1e6); border-radius: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.inspirationParameterSummary small { color: var(--studio-muted); }
+.inspirationShareBody label { min-width: 0; display: grid; gap: 6px; font-size: 13px; }
+.inspirationShareBody input, .inspirationShareBody textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--studio-border, #dfe1e6); border-radius: 8px; font: inherit; line-height: 1.6; color: var(--studio-text); background: var(--studio-surface-strong, #fff); }
+.inspirationShareBody textarea { min-height: 100px; max-height: 320px; resize: vertical; }
+.inspirationUploadForm .settingsActions { position: static !important; flex: 0 0 auto; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 0; padding: 14px 20px; border-top: 1px solid var(--studio-border, #dfe1e6); background: var(--studio-surface-strong, #fff); }
+.inspirationUploadForm .settingsActions button { width: auto !important; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 1px solid var(--studio-border, #dfe1e6); border-radius: 8px; cursor: pointer; }
+.inspirationShareError { color: #b22732; margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 620px) { .inspirationShareBody { padding: 16px; } .inspirationUploadForm .settingsHeader { padding: 14px 16px; } .inspirationUploadForm .settingsActions { padding: 12px 16px; } }

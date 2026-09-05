@@ -1,4 +1,5 @@
 import { isProtectedStudioAsset } from './assets.js';
+import { downloadMetaFromHistoryItem } from './resultFiles.js';
 
 const DEFAULT_VISIBLE_QUEUE_STATUSES = ['queued', 'running', 'failed', 'canceled', 'unknown', 'done'];
 
@@ -39,6 +40,7 @@ export function historyResultUrls(item) {
 export function historyResultItems(item) {
   if (Array.isArray(item?.resultItems) && item.resultItems.length) {
     return item.resultItems.map((result, index) => ({
+      ...downloadMetaFromHistoryItem({ ...item, ...result }, item.mode === 'video' || item.kind === 'video'),
       id: String(result.id || `${item?.id || 'history'}-${index}`),
       recordId: String(result.recordId || item?.id || ''),
       url: result.url || result.displayUrl || '',
@@ -58,6 +60,7 @@ export function historyResultItems(item) {
   const resultUrls = Array.isArray(item?.resultUrls) ? item.resultUrls : [];
   const urls = displayUrls.length ? displayUrls : resultUrls;
   return urls.map((url, index) => ({
+    ...downloadMetaFromHistoryItem(item, item.mode === 'video' || item.kind === 'video'),
     id: `${item?.id || 'history'}-${index}`,
     recordId: item?.id || '',
     url: resultUrls[index] || url,
@@ -143,12 +146,13 @@ export function currentSessionProject(session, queueStatuses = DEFAULT_VISIBLE_Q
     resultUrls: nodes.map((node) => node.url).filter(Boolean),
     displayResultUrls: nodes.map((node) => node.url).filter(Boolean),
     resultItems: nodes.map((node, index) => ({
+      ...(node.downloadMeta || {}),
       id: node.id || `${sessionId}-${index}`,
       recordId: node?.downloadMeta?.id || '',
       url: node.url,
       displayUrl: node.url,
       prompt: node.prompt || '',
-      generationPrompt: node.generationPrompt || node.prompt || '',
+      generationPrompt: node.generationPrompt || node.downloadMeta?.generationPrompt || node.prompt || '',
       workflow: node.workflow || null,
       model: node?.downloadMeta?.model || session.model || '',
       createdAt: node.createdAt || session.updatedAt || '',

@@ -5385,6 +5385,8 @@ function CreationDesk({
         url={previewVideo?.url || previewVideo}
         index={previewVideo?.index || 0}
         downloadMeta={previewVideo?.downloadMeta || currentDownloadMeta}
+        onShare={handleShareResult}
+        t={t}
         onClose={() => setPreviewVideo('')}
       />
     </section>

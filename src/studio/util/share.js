@@ -1,6 +1,7 @@
 import { displayResultUrl } from './assets.js';
 
 const SHARE_PARAMETER_LABELS = [
+  ['mode', '类型'],
   ['model', '模型'],
   ['providerId', '提供方'],
   ['routeLabel', '接口'],
@@ -11,7 +12,9 @@ const SHARE_PARAMETER_LABELS = [
   ['outputFormat', '格式'],
   ['moderation', '审核'],
   ['count', '数量'],
-  ['referenceCount', '参考图']
+  ['referenceCount', '参考图'],
+  ['duration', '时长'],
+  ['fps', '帧率']
 ];
 
 function clean(value) {

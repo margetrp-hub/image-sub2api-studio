@@ -1,21 +1,62 @@
-.galleryWorkspacePanel > .lightboxOverlay { position: fixed; inset: 0; z-index: 90; }
-.lightboxPromptOnlyStage { width: min(420px, 86%) !important; min-height: 260px !important; padding: 24px !important; display: grid !important; place-items: center !important; align-content: center !important; gap: 10px !important; border: 1px dashed color-mix(in srgb, var(--studio-primary) 26%, var(--studio-border)) !important; border-radius: 18px !important; background: linear-gradient(145deg, color-mix(in srgb, var(--studio-primary) 10%, transparent), transparent 58%), color-mix(in srgb, var(--studio-surface-soft) 92%, transparent) !important; color: var(--studio-primary) !important; text-align: center !important; }
-.lightboxPromptOnlyStage strong { color: var(--studio-text-strong) !important; font-size: 18px !important; font-weight: 950 !important; }
-.lightboxPromptOnlyStage p { max-width: 280px !important; margin: 0 !important; color: var(--studio-muted) !important; font-size: 13px !important; line-height: 1.55 !important; }
-
-/* Keep prompt actions visible while the long prompt body scrolls. */
-.lightboxPanel { width: min(1180px, calc(100vw - 48px)); height: min(860px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); }
-.lightboxPanel > .iconButton { z-index: 3; pointer-events: auto; }
-.lightboxPromptPanel { display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
-.lightboxPromptHead { min-width: 0; padding-right: 42px; }
-.lightboxPromptHead > div:first-child, .lightboxPromptHead strong { min-width: 0; }
-.lightboxPromptHead strong { overflow-wrap: anywhere; }
-.lightboxPromptHead .lightboxPromptActions { min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.lightboxPromptActions button { white-space: nowrap; }
-.lightboxPromptPanel > .promptSectionList { min-width: 0; min-height: 0; overflow-y: auto; padding-right: 4px; scrollbar-gutter: stable; align-content: start; }
-.resultMediaActions, .lightboxMediaActions { position: absolute; top: 10px; right: 10px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; }
-.resultGrid .resultMediaActions > a, .resultGrid .resultMediaActions > button, .lightboxMediaActions > a, .lightboxMediaActions > button { position: static !important; width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; padding: 0 !important; display: grid !important; place-items: center !important; border: 1px solid color-mix(in srgb, var(--studio-border) 86%, transparent) !important; border-radius: 8px !important; background: color-mix(in srgb, var(--studio-surface-strong) 88%, transparent) !important; color: var(--studio-text) !important; cursor: pointer !important; box-shadow: 0 2px 10px rgba(15, 23, 42, 0.1) !important; backdrop-filter: blur(12px); }
-.resultGrid .resultMediaActions > a:hover, .resultGrid .resultMediaActions > a:focus-visible, .resultGrid .resultMediaActions > button:hover, .resultGrid .resultMediaActions > button:focus-visible, .lightboxMediaActions > a:hover, .lightboxMediaActions > a:focus-visible, .lightboxMediaActions > button:hover, .lightboxMediaActions > button:focus-visible { border-color: var(--studio-primary) !important; color: var(--studio-primary) !important; }
-.lightboxImageStage { position: relative; }
-.lightboxPromptActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-@media (max-width: 900px) { .lightboxPanel { height: min(860px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); } }
+/* Modal geometry is scoped so legacy workbench button/grid rules cannot leak in. */
+.studioModalPanel.lightboxPanel {
+  width: min(1180px, calc(100vw - 32px)) !important;
+  height: min(860px, calc(100dvh - 32px)) !important;
+  max-height: calc(100dvh - 32px) !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr) !important;
+  grid-template-rows: 58px minmax(0, 1fr) !important;
+  overflow: hidden !important;
+}
+.lightboxPanel .lightboxToolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--studio-border, #dfe1e6);
+  background: var(--studio-surface-strong, #fff);
+}
+.lightboxToolbar > span { min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lightboxToolbar .lightboxMediaActions { position: static !important; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.lightboxPanel .lightboxMediaActions > a, .lightboxPanel .lightboxMediaActions > button {
+  position: static !important; width: 36px !important; height: 36px !important;
+  min-width: 36px !important; min-height: 36px !important; max-width: 36px !important;
+  padding: 0 !important; display: grid !important; place-items: center !important;
+  border: 1px solid var(--studio-border, #dfe1e6) !important; border-radius: 8px !important;
+  background: var(--studio-surface-soft, #f5f6f8) !important; color: var(--studio-text, #202124) !important; cursor: pointer;
+}
+.lightboxPanel .lightboxImageStage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #151719; }
+.lightboxPanel .lightboxPromptPanel { min-width: 0; min-height: 0; padding: 18px; display: grid !important; grid-template-rows: auto auto minmax(0, 1fr) !important; align-content: stretch; gap: 12px; overflow: hidden !important; }
+.lightboxPanel .lightboxPromptHead { min-width: 0; padding: 0 !important; display: flex !important; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lightboxPromptHead > div:first-child { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.lightboxPanel .lightboxPromptHead strong { font-size: 16px !important; font-weight: 600; line-height: 1.4; }
+.lightboxPromptHead .lightboxPromptActions { display: flex !important; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.lightboxPromptActions button { width: auto !important; min-height: 34px !important; white-space: nowrap; }
+.lightboxPanel .lightboxPromptPanel > .promptSectionList { min-width: 0; min-height: 0; overflow-y: auto; padding-right: 4px; scrollbar-gutter: stable; align-content: start; }
+.lightboxPanel .promptSection { padding: 0 0 14px !important; border: 0 !important; border-bottom: 1px solid var(--studio-border, #dfe1e6) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.lightboxPanel .promptSection p { font-size: 14px; line-height: 1.75; overflow-wrap: anywhere; white-space: pre-wrap; }
+.studioModalPanel.promptOnlyLightboxPanel { width: min(760px, calc(100vw - 32px)) !important; grid-template-columns: minmax(0, 1fr) !important; }
+.promptOnlyLightboxPanel .lightboxPromptPanel { border-left: 0 !important; }
+.studioModalPanel.videoLightboxPanel { grid-template-columns: minmax(0, 1fr) !important; }
+.videoLightboxPanel .lightboxImageStage video { width: 100% !important; height: 100% !important; max-height: none !important; object-fit: contain; }
+.lightboxPanel .lightboxImageStage > video { width: 100% !important; height: 100% !important; max-height: none !important; object-fit: contain; }
+.caseMedia > video { width: 100%; height: 100%; object-fit: cover; }
+.lightboxImageStage .lightboxNavButton {
+  position: absolute; top: 50%; z-index: 2; width: 36px !important; height: 36px !important;
+  min-width: 36px !important; min-height: 36px !important; padding: 0 !important;
+  display: grid; place-items: center; border: 1px solid #dfe1e6; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92); color: #202124; transform: translateY(-50%); cursor: pointer;
+}
+.lightboxNavPrevious { left: 12px; }
+.lightboxNavNext { right: 12px; }
+.resultMediaActions { position: absolute; top: 10px; right: 10px; z-index: 4; display: inline-flex; align-items: center; gap: 6px; }
+.resultGrid .resultMediaActions > a, .resultGrid .resultMediaActions > button { position: static !important; width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; padding: 0 !important; display: grid !important; place-items: center !important; border: 1px solid var(--studio-border) !important; border-radius: 8px !important; background: var(--studio-surface-strong) !important; color: var(--studio-text) !important; cursor: pointer !important; }
+@media (max-width: 900px) {
+  .studioModalPanel.lightboxPanel { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: 58px minmax(0, 0.85fr) minmax(0, 1.15fr) !important; }
+  .studioModalPanel.promptOnlyLightboxPanel, .studioModalPanel.videoLightboxPanel { grid-template-rows: 58px minmax(0, 1fr) !important; }
+  .lightboxPanel .lightboxPromptPanel { padding: 16px; border-left: 0; }
+  .videoLightboxPanel .lightboxNavButton { top: 12px; transform: none; }
+}

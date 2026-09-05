@@ -4,6 +4,9 @@ import { atomicWriteJson } from './jsonFiles.js';
 import { text } from './text.js';
 
 const GENERATION_FIELDS = [
+  'mode',
+  'duration',
+  'fps',
   'model',
   'providerId',
   'routeLabel',

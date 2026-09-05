@@ -171,6 +171,7 @@ export const dictionaries = {
       uploadTitle: '分享一个好提示词',
       uploadHint: '先保存到你的个人灵感广场，后续可以再做公开审核和精选。',
       shareToLibrary: '分享到灵感库',
+      shareFailed: '分享失败，请重试',
       shareCreationTitle: '分享这张生成作品',
       shareCreationHint: '作品、完整提示词和生成参数会一起保存到你的用户灵感库。',
       sharePreview: '待分享作品',
@@ -496,10 +497,13 @@ export const dictionaries = {
     },
     lightbox: {
       imageAlt: '生成结果',
+      preview: '预览',
       promptLabel: '完整提示词',
       promptDefaultTitle: '提示词',
       noPrompt: '没有记录提示词',
       copyPrompt: '复制',
+      copiedPrompt: '已复制',
+      copyFailed: '复制失败',
       share: '分享'
     },
     settings: {
@@ -989,6 +993,7 @@ export const dictionaries = {
       uploadTitle: 'Share a good prompt',
       uploadHint: 'Save it to your personal inspiration gallery first; public review and curation can come later.',
       shareToLibrary: 'Share to Inspiration',
+      shareFailed: 'Sharing failed. Please try again.',
       shareCreationTitle: 'Share this creation',
       shareCreationHint: 'The image, full prompt, and generation settings will be saved together in your inspiration library.',
       sharePreview: 'Creation to share',
@@ -1314,10 +1319,13 @@ export const dictionaries = {
     },
     lightbox: {
       imageAlt: 'Generated image',
+      preview: 'Preview',
       promptLabel: 'Full prompt',
       promptDefaultTitle: 'Prompt',
       noPrompt: 'No prompt was saved',
       copyPrompt: 'Copy',
+      copiedPrompt: 'Copied',
+      copyFailed: 'Copy failed',
       share: 'Share'
     },
     settings: {

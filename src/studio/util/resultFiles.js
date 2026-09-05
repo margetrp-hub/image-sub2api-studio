@@ -76,6 +76,10 @@ export function downloadMetaFromHistoryItem(item, isVideo = false) {
     outputFormat: item?.outputFormat || '',
     count: item?.count || '',
     referenceCount: item?.referenceCount || '',
+    routeLabel: item?.routeLabel || '',
+    moderation: item?.moderation ?? '',
+    duration: item?.duration || '',
+    fps: item?.fps || '',
     id: item?.taskId || item?.id || item?.createdAt
   };
 }

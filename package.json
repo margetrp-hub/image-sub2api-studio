@@ -1,7 +1,7 @@
 {
   "name": "image-agent-studio",
   "private": true,
-  "version": "1.0.25",
+  "version": "1.0.26",
   "type": "module",
   "scripts": {
     "check:deploy": "node scripts/check-deploy-config.mjs",
@@ -90,6 +90,8 @@
     "smoke:canvas:blob-cleanup": "npm exec --yes --package=playwright -- node scripts/smoke-canvas-blob-cleanup.mjs",
     "smoke:canvas:link": "npm exec --yes --package=playwright -- node scripts/smoke-canvas-custom-link.mjs",
     "smoke:history:windowing": "npm exec --yes --package=playwright -- node scripts/smoke-history-windowing.mjs",
+    "smoke:history:lightbox": "npm exec --yes --package=playwright -- node scripts/smoke-history-lightbox.mjs",
+    "smoke:studio:modals": "npm exec --yes --package=playwright -- node scripts/smoke-studio-modal-flows.mjs",
     "smoke:inspiration:windowing": "npm exec --yes --package=playwright -- node scripts/smoke-inspiration-windowing.mjs",
     "smoke:inspiration:reference-flow": "node scripts/smoke-inspiration-reference-flow.mjs",
     "smoke:inspiration:prompt-zone": "npm exec --yes --package=playwright -- node scripts/smoke-inspiration-prompt-zone.mjs",
