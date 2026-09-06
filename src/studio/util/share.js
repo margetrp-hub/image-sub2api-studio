@@ -29,10 +29,6 @@ function clean(value) {
 function cleanMultiline(value) {
   return String(value ?? '')
     .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
@@ -91,25 +87,40 @@ export function buildCommunityInspirationDraft({ url = '', index = 0, meta = {},
 
 async function blobUrlToDataUrl(url) {
   if (!String(url).startsWith('blob:') || typeof fetch !== 'function' || typeof FileReader === 'undefined') return url;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return '';
-    const blob = await response.blob();
-    return await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ''));
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return '';
+  return prepareShareImage(url);
+}
+
+export async function prepareShareImage(url) {
+  if (!/^(?:https?:|blob:)/i.test(String(url || ''))) return url;
+  const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error('SHARE_ASSET_REQUIRES_UPLOAD');
+  const mime = (response.headers.get('content-type') || '').split(';')[0].toLowerCase();
+  if (!/^(?:image\/(?:png|jpeg|webp)|video\/(?:mp4|webm))$/.test(mime)) throw new Error('SHARE_ASSET_REQUIRES_UPLOAD');
+  const limit = mime.startsWith('video/') ? 128 * 1024 * 1024 : 32 * 1024 * 1024;
+  if (Number(response.headers.get('content-length')) > limit) throw new Error('SHARE_ASSET_SIZE_INVALID');
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) { await reader.cancel(); throw new Error('SHARE_ASSET_SIZE_INVALID'); }
+    chunks.push(value);
   }
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    fileReader.onload = () => resolve(String(fileReader.result));
+    fileReader.onerror = () => reject(new Error('SHARE_ASSET_REQUIRES_UPLOAD'));
+    fileReader.readAsDataURL(new Blob(chunks, { type: mime }));
+  });
 }
 
 export async function prepareCommunityInspirationDraft(options = {}) {
   const draft = buildCommunityInspirationDraft(options);
   return {
     ...draft,
-    image: await blobUrlToDataUrl(draft.image)
+    // A revoked/expired source must not prevent opening the replacement upload.
+    image: await blobUrlToDataUrl(draft.image).catch(() => draft.image)
   };
 }

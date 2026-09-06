@@ -14,12 +14,12 @@ function serializeWorkflowState(workflow) {
         nodeId: String(step?.nodeId || '').slice(0, 160),
         mode: String(step?.mode || 'image').slice(0, 40),
         route: String(step?.route || '').slice(0, 80),
-        prompt: String(step?.prompt || '').slice(0, 12000)
+        prompt: String(step?.prompt || '')
       }))
       .filter((step) => step.prompt)
       .slice(-24)
     : [];
-  const rootPrompt = String(workflow.rootPrompt || '').slice(0, 12000);
+  const rootPrompt = String(workflow.rootPrompt || '');
   if (!rootPrompt && !lineage.length) return null;
   return { rootPrompt, lineage };
 }
@@ -56,8 +56,8 @@ export function createCurrentSessionSerializers({
       providerFamily: String(item.providerFamily || item.providerId || item.provider || ''),
       apiKeySource: String(item.apiKeySource || ''),
       providerLabel: String(item.providerLabel || ''),
-      prompt: String(item.prompt || '').slice(0, 12000),
-      rawPrompt: String(item.rawPrompt || '').slice(0, 12000),
+      prompt: String(item.prompt || ''),
+      rawPrompt: String(item.rawPrompt || ''),
       workflow: serializeWorkflowState(item.workflow),
       model: String(item.model || imageModels[0]),
       aspect: item.aspect || item.aspectRatio || '1:1',
@@ -79,7 +79,7 @@ export function createCurrentSessionSerializers({
       videoMotion: normalizeVideoMotion(item.videoMotion),
       videoStyle: normalizeVideoStyle(item.videoStyle),
       videoQuality: normalizeVideoQuality(item.videoQuality),
-      negativePrompt: String(item.negativePrompt || '').slice(0, 4000),
+      negativePrompt: String(item.negativePrompt || ''),
       selectedCanvasNodeId: String(item.selectedCanvasNodeId || ''),
       selectedCanvasNodeSnapshot: item.selectedCanvasNodeSnapshot || null,
       referencesOpen: Boolean(item.referencesOpen),
@@ -189,7 +189,7 @@ export function createCurrentSessionSerializers({
       id: String(item.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
       role,
       content: String(item.content || '').slice(0, 8000),
-      finalPrompt: String(item.finalPrompt || '').slice(0, 12000),
+      finalPrompt: String(item.finalPrompt || ''),
       pending: Boolean(item.pending),
       failed: Boolean(item.failed)
     };
@@ -206,7 +206,7 @@ export function createCurrentSessionSerializers({
       details: String(value.details || '').slice(0, 3000),
       textRules: String(value.textRules || '').slice(0, 2000),
       constraints: String(value.constraints || '').slice(0, 3000),
-      finalPrompt: String(value.finalPrompt || '').slice(0, 12000),
+      finalPrompt: String(value.finalPrompt || ''),
       raw: String(value.raw || '').slice(0, 16000)
     };
   }

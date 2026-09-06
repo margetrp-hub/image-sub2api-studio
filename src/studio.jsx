@@ -249,7 +249,8 @@ import {
   resultExtension,
   resultVideoExtension
 } from './studio/util/resultFiles.js';
-import { prepareCommunityInspirationDraft } from './studio/util/share.js';
+import { buildCommunityInspirationDraft, prepareCommunityInspirationDraft, prepareShareImage } from './studio/util/share.js';
+import { PROMPT_MAX_LENGTH } from './studio/util/promptLimits.js';
 import {
   currentSessionProject,
   groupHistorySessions,
@@ -2789,6 +2790,11 @@ function CreationDesk({
   }
 
   function validateGenerationTask(task) {
+    if ([task.prompt, task.negativePrompt].some((value) => String(value || '').length > PROMPT_MAX_LENGTH)) {
+      setStatus('error');
+      setMessage(t('prompt.tooLong', '提示词超过 100,000 字符，请缩短后重试；原文未被截断。'));
+      return false;
+    }
     if (!task.prompt) {
       setStatus('error');
       setMessage(caseResolving
@@ -6127,7 +6133,13 @@ function StudioApp() {
 
   async function handleCreateCommunityPrompt(item) {
     const historyClient = createHistoryClient({ session });
-    const created = await historyClient.createCommunityPrompt(item);
+    let image = item.image;
+    if (/^\/studio-api\/(?:community-prompts|library-assets)\//.test(image || '')) {
+      const resolved = await historyClient.resolveAssetUrl(image);
+      try { image = await prepareShareImage(resolved); }
+      finally { if (resolved.startsWith('blob:')) URL.revokeObjectURL(resolved); }
+    }
+    const created = await historyClient.createCommunityPrompt({ ...item, image });
     if (!created) return;
     setSiteData((current) => ({
       ...(current || {}),
@@ -6151,24 +6163,40 @@ function StudioApp() {
   }
 
   async function handleReactTemplate(item, action) {
-    if (action === 'copy') {
-      const prompt = item.prompt || item.promptPreview || item.summary || '';
-      if (prompt) await navigator.clipboard?.writeText(prompt).catch(() => {});
+    try {
+      if (action === 'copy' || action === 'share') {
+        const resolved = await resolveLibraryCase(item, { updateSelection: false });
+        if (action === 'share') {
+          await handleOpenCommunityShare(buildCommunityInspirationDraft({
+            url: resolved.image || '', title: resolved.title,
+            meta: { ...resolved.generation, ...resolved, prompt: resolved.prompt }
+          }));
+          return;
+        }
+        if (resolved.prompt) await navigator.clipboard.writeText(resolved.prompt);
+      }
+      if (!String(item?.id || '').startsWith('share-')) return;
+      const historyClient = createHistoryClient({ session });
+      if (action === 'withdraw') {
+        if (!window.confirm(t('gallery.withdrawConfirmation', '撤回这条公开分享？其他用户将无法继续查看，已下载或复制的内容无法收回。'))) return;
+        await historyClient.withdrawCommunityPrompt(item.id);
+        setSiteData((current) => current?.cases ? ({
+          ...current,
+          totalCases: Math.max(0, Number(current.totalCases || 0) - 1),
+          cases: current.cases.filter((entry) => String(entry.id) !== String(item.id))
+        }) : current);
+        setSelectedCase((current) => String(current?.id) === String(item.id) ? null : current);
+        return;
+      }
+      const updated = await historyClient.reactCommunityPrompt(item.id, action);
+      if (!updated) return;
+      setSiteData((current) => current?.cases ? ({
+        ...current,
+        cases: current.cases.map((caseItem) => String(caseItem.id) === String(updated.id) ? { ...caseItem, ...updated } : caseItem)
+      }) : current);
+    } catch (error) {
+      window.alert(`${t('gallery.actionFailed', '操作未完成，请重试。')}\n${error?.message || ''}`);
     }
-    if (action === 'share') {
-      const prompt = item.prompt || item.promptPreview || item.summary || '';
-      const shareText = `${item.title || 'Prompt'}\n\n${prompt}`;
-      if (navigator.share) await navigator.share({ title: item.title || 'Prompt', text: shareText }).catch(() => {});
-      else if (prompt) await navigator.clipboard?.writeText(shareText);
-    }
-    if (!String(item?.id || '').startsWith('share-')) return;
-    const historyClient = createHistoryClient({ session });
-    const updated = await historyClient.reactCommunityPrompt(item.id, action).catch(() => null);
-    if (!updated) return;
-    setSiteData((current) => current?.cases ? ({
-      ...current,
-      cases: current.cases.map((caseItem) => String(caseItem.id) === String(updated.id) ? { ...caseItem, ...updated } : caseItem)
-    }) : current);
   }
 
   function handleToggleTemplateFavorite(item) {

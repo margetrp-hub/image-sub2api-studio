@@ -177,7 +177,8 @@ const cssBudgets = {
     important: 40
   },
   'src/styles/studio.inspiration-share.css': {
-    lines: 26,
+    // Explicit publication consent adds two component-owned rules, no overrides.
+    lines: 28,
     important: 5
   },
   'src/styles/studio.final-state.css': {

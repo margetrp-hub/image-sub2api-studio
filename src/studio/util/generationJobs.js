@@ -25,7 +25,29 @@ export function isFinalServerJobStatus(status) {
 }
 
 function compactFingerprintValue(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 12000);
+  return String(value ?? '').replace(/\r\n?/g, '\n').trim();
+}
+
+const fileIdentities = new WeakMap();
+let nextFileIdentity = 0;
+
+function referenceIdentity(value) {
+  if (!value) return '';
+  const file = value.file || value;
+  // Files are immutable. Distinguish replacement files even when their names,
+  // sizes and timestamps happen to match; the server compares actual bytes.
+  if (typeof Blob !== 'undefined' && file instanceof Blob) {
+    if (!fileIdentities.has(file)) fileIdentities.set(file, ++nextFileIdentity);
+    return `file:${fileIdentities.get(file)}`;
+  }
+  const source = String(value.dataUrl || value.url || value.src || value);
+  let a = 2166136261;
+  let b = 5381;
+  for (let index = 0; index < source.length; index += 1) {
+    a = Math.imul(a ^ source.charCodeAt(index), 16777619);
+    b = Math.imul(b, 33) ^ source.charCodeAt(index);
+  }
+  return `${source.length}:${a >>> 0}:${b >>> 0}`;
 }
 
 export function generationTaskFingerprint(value = {}) {
@@ -34,11 +56,12 @@ export function generationTaskFingerprint(value = {}) {
   const selectedNodeId = compactFingerprintValue(value.selectedCanvasNodeId || value.parentCanvasNodeId);
   const referenceCount = Number(value.referenceCount ?? value.inputSummary?.referenceCount ?? value.referenceItems?.length ?? 0) || 0;
   const hasMask = Boolean(value.hasMask ?? value.inputSummary?.hasMask ?? value.maskFile);
-  return [
+  return JSON.stringify([
     compactFingerprintValue(value.sessionId),
     compactFingerprintValue(value.mode || 'image'),
     compactFingerprintValue(value.route || ''),
     compactFingerprintValue(value.providerId || value.providerFamily || ''),
+    compactFingerprintValue(value.providerProfileId),
     compactFingerprintValue(value.apiKeySource || ''),
     compactFingerprintValue(value.model),
     prompt,
@@ -51,8 +74,15 @@ export function generationTaskFingerprint(value = {}) {
     compactFingerprintValue(value.batchKey),
     selectedNodeId,
     String(referenceCount),
-    hasMask ? 'mask' : ''
-  ].join('|');
+    hasMask ? 'mask' : '',
+    (value.referenceItems || value.images || []).map((reference) => [referenceIdentity(reference), reference?.role || '']),
+    referenceIdentity(value.canvasReference),
+    referenceIdentity(value.maskFile || value.mask),
+    ...(value.mode === 'video' ? [
+      value.duration, value.fps, value.width, value.height,
+      value.motion, value.style, value.negativePrompt
+    ].map(compactFingerprintValue) : [])
+  ]);
 }
 
 export function findDuplicateActiveGenerationTask(queue, fingerprint) {
@@ -270,6 +300,9 @@ export function generationErrorMessage(error, t = defaultTranslate, compactText 
   const lowered = message.toLowerCase();
   const requestId = errorRequestId(error, message);
   const requestSuffix = requestId ? t('errors.requestIdSuffix', ' 请求 ID：{requestId}', { requestId }) : '';
+  if (error?.code === 'PROMPT_TOO_LONG' || lowered.includes('prompt_too_long')) {
+    return t('prompt.tooLong', '提示词超过 100,000 字符，请缩短后重试；原文未被截断。');
+  }
   if (error?.code === 'GENERATION_STOPPED' || lowered.includes('generation_stopped')) {
     return t('errors.stopped', '已停止本页等待。若请求已经到达上游，仍可能继续处理或产生扣费；请先查看当前画布/历史图库，确认没有新结果后再重试。');
   }

@@ -70,6 +70,7 @@ export function buildServerImageGenerationJobPayload({
         mode,
         route: safeRoute,
         providerId,
+        providerProfileId,
         apiKeySource,
         model,
         prompt: generationPrompt,
@@ -82,7 +83,9 @@ export function buildServerImageGenerationJobPayload({
         batchKey: batchId ? `${batchId}:${batchIndex}` : '',
         parentCanvasNodeId,
         referenceCount,
-        hasMask
+        hasMask,
+        images,
+        mask
       }),
       model,
       prompt,
@@ -147,6 +150,7 @@ export function buildServerVideoGenerationJobPayload({
         mode: 'video',
         route: 'video',
         providerId,
+        providerProfileId,
         apiKeySource,
         model,
         prompt: generationPrompt || prompt,
@@ -154,7 +158,9 @@ export function buildServerVideoGenerationJobPayload({
         quality,
         count: 1,
         parentCanvasNodeId,
-        referenceCount: images.length
+        referenceCount: images.slice(0, 1).length,
+        images: images.slice(0, 1),
+        duration, fps, width, height, motion, style, negativePrompt
       }),
       model,
       prompt,

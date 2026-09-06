@@ -6,6 +6,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { test } from 'node:test';
 import { createKeyedLock } from './studio-service/keyedLock.js';
+import { atomicWriteJson } from './studio-service/jsonFiles.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 await fs.mkdir(path.join(root, 'tmp'), { recursive: true });
@@ -110,7 +111,7 @@ try {
     });
 
     await t.test('multiline prompts and video metadata survive all persistence paths', async () => {
-      const prompt = 'Subject:\n  Keep the line breaks and indentation.\n\nLighting:\n  Soft daylight.\n'.repeat(100).trim();
+      const prompt = 'Subject:\n  Keep the line breaks and indentation.\n\nLighting:\n  Soft daylight.\n'.repeat(400).trim();
       const generationPrompt = `${prompt}\n\nOutput: high detail.`;
       const meta = {
         mode: 'video', model: 'video-fixture', aspectRatio: '3:4', resolutionTier: '2K',
@@ -211,6 +212,133 @@ try {
       assert.equal(response.status, 206);
       assert.equal(response.headers.get('content-type'), 'video/webm');
       assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes.subarray(-8));
+    });
+
+    await t.test('publications require consent, are visible across users, and can only be withdrawn by their author', async () => {
+      const body = { prompt: 'A public fixture prompt\n  with complete parameters.', visibility: 'public', image: png, generation: { model: 'fixture', size: '768x1024' } };
+      const rejected = await request('publisher', '/community-prompts', { method: 'POST', body });
+      assert.equal(rejected.status, 400);
+      assert.equal((await rejected.json()).error, 'PUBLICATION_CONFIRMATION_REQUIRED');
+      const { item } = await api('publisher', '/community-prompts', { method: 'POST', body: { ...body, publicationConfirmed: true } });
+      assert.equal(item.canWithdraw, true);
+      assert.match(item.image, /^\/studio-api\/community-prompts\//);
+      const others = (await api('reader', '/community-prompts')).items;
+      assert.equal(others.length, 1);
+      assert.equal(others[0].canWithdraw, false);
+      assert.equal(others[0].prompt, body.prompt);
+      assert.equal(others[0].generation.size, '768x1024');
+      assert(!/ownerKey|votes|integrity-publisher/.test(JSON.stringify(others)));
+      const anonymous = await fetch(`${base}/library`);
+      assert(!(await anonymous.json()).cases.some((entry) => entry.id === item.id));
+      assert.equal((await fetch(`${base}/community-prompts`)).status, 401);
+      const privateBackup = await api('publisher', '/backup');
+      assert.equal(privateBackup.data.communityPrompts.length, 0, 'Restoring personal data must not republish public items');
+      assert.equal(privateBackup.data.assets.length, 0, 'Publication must not leave staging assets in personal backups');
+      const assetRoute = item.image.replace('/studio-api', '');
+      assert.equal((await fetch(`${base}${assetRoute}`)).status, 401);
+      const asset = await request('reader', assetRoute);
+      assert.equal(asset.status, 200);
+      assert.equal(asset.headers.get('cache-control'), 'private, no-store');
+      assert.deepEqual(Buffer.from(await asset.arrayBuffer()), Buffer.from(png.split(',')[1], 'base64'));
+      await Promise.all(Array.from({ length: 8 }, (_, index) => api(`voter-${index}`, `/community-prompts/${item.id}/reaction`, {
+        method: 'POST', body: { action: 'up' }
+      })));
+      const voted = (await api('voter-0', '/community-prompts')).items[0];
+      assert.equal(voted.reactions.up, 8);
+      assert.equal(voted.userReaction, 'up');
+      assert.equal((await api('reader', '/community-prompts')).items[0].userReaction, '');
+      await api('voter-0', `/community-prompts/${item.id}/reaction`, { method: 'POST', body: { action: 'down' } });
+      const changed = (await api('reader', '/community-prompts')).items[0];
+      assert.deepEqual(changed.reactions, { up: 7, down: 1 });
+      assert.equal((await request('reader', `/community-prompts/${item.id}`, { method: 'DELETE' })).status, 404);
+      assert.equal((await api('reader', `/library/${item.id}`)).case.prompt, body.prompt);
+      await api('publisher', `/community-prompts/${item.id}`, { method: 'DELETE' });
+      assert.equal((await request('reader', assetRoute)).status, 404);
+      assert.equal((await request('reader', `/library/${item.id}`)).status, 404);
+      assert.equal((await api('reader', '/community-prompts')).items.length, 0);
+      await api('publisher', '/backup/restore', { method: 'POST', body: privateBackup });
+      assert.equal((await api('reader', '/community-prompts')).items.length, 0);
+    });
+
+    await t.test('public image and video copies survive deletion of their private source history', async () => {
+      const videoBytes = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.from('public-video-fixture')]);
+      for (const [mode, source, expectedType] of [
+        ['image', png, 'image/png'],
+        ['video', `data:video/webm;base64,${videoBytes.toString('base64')}`, 'video/webm']
+      ]) {
+        const { record } = await api('public-media', '/history', {
+          method: 'POST', body: { id: `public-source-${mode}`, prompt: 'Independent public media fixture', resultUrls: [source], mode }
+        });
+        const { item } = await api('public-media', '/community-prompts', {
+          method: 'POST', body: { prompt: record.prompt, image: record.resultUrls[0], generation: { mode }, visibility: 'public', publicationConfirmed: true }
+        });
+        await api('public-media', '/history', { method: 'DELETE' });
+        const response = await request('reader', item.image.replace('/studio-api', ''));
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get('content-type'), expectedType);
+        assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.from(source.split(',')[1], 'base64'));
+        await api('public-media', `/community-prompts/${item.id}`, { method: 'DELETE' });
+      }
+    });
+
+    await t.test('the first user API access rolls back an interrupted restore before returning data', async () => {
+      await api('recovery', '/history', { method: 'POST', body: { id: 'recovery-original', prompt: 'Original data' } });
+      const before = await api('recovery', '/backup');
+      const userDir = path.join(dataDir, 'users', before.user.key);
+      const transaction = path.join(userDir, '.restore-transaction');
+      const entries = await Promise.all(['records.json', 'session.json', 'sessions', 'jobs.json', 'community-prompts.json', 'assets'].map(async (name) => ({
+        name, hadOriginal: await fs.lstat(path.join(userDir, name)).then(() => true, () => false)
+      })));
+      await atomicWriteJson(path.join(transaction, 'journal.json'), { phase: 'prepared', entries });
+      await fs.mkdir(path.join(transaction, 'previous'), { recursive: true });
+      await fs.rename(path.join(userDir, 'records.json'), path.join(transaction, 'previous', 'records.json'));
+      await atomicWriteJson(path.join(userDir, 'records.json'), { records: [{ id: 'partially-restored', prompt: 'Must not be returned' }] });
+      const recovered = await api('recovery', '/history');
+      assert.equal(recovered.records[0].id, 'recovery-original');
+      assert.deepEqual((await api('recovery', '/backup')).data, before.data);
+      await assert.rejects(fs.access(transaction), { code: 'ENOENT' });
+    });
+
+    await t.test('prompt length boundaries reject before any persistence and keep long text intact', async () => {
+      const prompt = 'p'.repeat(100000);
+      await api('long', '/history', { method: 'POST', body: { id: 'long-prompt-history', prompt } });
+      assert.equal((await api('long', '/history')).records[0].prompt, prompt);
+      const before = await api('long', '/backup');
+      for (const [route, body] of [
+        ['/history', { id: 'too-long-history', prompt: `${prompt}!`, resultUrls: [png] }],
+        ['/community-prompts', { prompt: `${prompt}!`, image: png }],
+        ['/session', { prompt: 'valid', canvasNodes: [{ generationPrompt: `${prompt}!`, url: png }] }]
+      ]) {
+        const response = await request('long', route, { method: 'POST', body });
+        assert.equal(response.status, 400);
+        assert.equal((await response.json()).error, 'PROMPT_TOO_LONG');
+        assert.deepEqual((await api('long', '/backup')).data, before.data);
+      }
+      await api('long', '/backup/restore', { method: 'POST', body: before });
+      assert.equal((await api('long', '/history')).records[0].prompt, prompt);
+    });
+
+    await t.test('external image URLs must be uploaded and legacy local shares survive clearing history', async () => {
+      const response = await request('legacy-media', '/community-prompts', {
+        method: 'POST', body: { prompt: 'External image must not silently expire', image: 'https://example.invalid/temporary.png' }
+      });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error, 'SHARE_ASSET_REQUIRES_UPLOAD');
+      const { record } = await api('legacy-media', '/history', {
+        method: 'POST', body: { id: 'legacy-source-history', prompt: 'Legacy source', resultUrls: [png] }
+      });
+      const backup = await api('legacy-media', '/backup');
+      backup.data.communityPrompts = [{
+        id: 'share-legacy-fixture', prompt: 'Legacy shares stay private and keep their images',
+        image: record.resultUrls[0], visibility: 'workspace'
+      }];
+      await api('legacy-media', '/backup/restore', { method: 'POST', body: backup });
+      await api('legacy-media', '/history', { method: 'DELETE' });
+      const item = (await api('legacy-media', '/community-prompts')).items[0];
+      assert.notEqual(item.image, record.resultUrls[0]);
+      assert.equal(item.visibility, 'private');
+      assert.equal((await request('legacy-media', item.image.replace('/studio-api', ''))).status, 200);
+      assert.equal((await api('reader', '/community-prompts')).items.length, 0);
     });
 
     await t.test('invalid backup contents are rejected before any existing data changes', async () => {

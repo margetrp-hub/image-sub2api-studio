@@ -22,4 +22,6 @@
 .inspirationUploadForm .settingsActions { position: static !important; flex: 0 0 auto; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 0; padding: 14px 20px; border-top: 1px solid var(--studio-border, #dfe1e6); background: var(--studio-surface-strong, #fff); }
 .inspirationUploadForm .settingsActions button { width: auto !important; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 1px solid var(--studio-border, #dfe1e6); border-radius: 8px; cursor: pointer; }
 .inspirationShareError { color: #b22732; margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.inspirationShareBody .inspirationPublicationConsent { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+.inspirationShareBody .inspirationPublicationConsent input { width: 18px; height: 18px; flex: 0 0 18px; margin: 2px 0 0; padding: 0; }
 @media (max-width: 620px) { .inspirationShareBody { padding: 16px; } .inspirationUploadForm .settingsHeader { padding: 14px 16px; } .inspirationUploadForm .settingsActions { padding: 12px 16px; } }

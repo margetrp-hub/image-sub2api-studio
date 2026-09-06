@@ -2220,6 +2220,10 @@ export class StudioHistoryClient {
     return payload.item || null;
   }
 
+  async withdrawCommunityPrompt(promptId) {
+    await this.request(`/community-prompts/${encodeURIComponent(promptId)}`, { method: 'DELETE' });
+  }
+
   async getPromptPreset(presetId) {
     const payload = await this.request(`/prompt-presets/${encodeURIComponent(presetId)}`);
     return payload.preset || null;
@@ -2298,6 +2302,7 @@ export class StudioHistoryClient {
     if (
       !value.startsWith('/studio-api/history/')
       && !value.startsWith('/studio-api/generation-jobs/')
+      && !value.startsWith('/studio-api/community-prompts/')
       && !value.startsWith('/studio-api/library-assets/')
     ) return value;
     const blob = await cachedStudioAssetBlob({ baseUrl: this.baseUrl, url: value, session: this.session });

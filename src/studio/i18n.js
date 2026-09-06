@@ -7,6 +7,9 @@ export const SUPPORTED_LANGUAGES = [
 
 export const dictionaries = {
   'zh-CN': {
+    prompt: {
+      tooLong: '提示词超过 100,000 字符，请缩短后重试；原文未被截断。'
+    },
     app: {
       title: 'Image Agent Studio',
       brand: 'Image Agent Studio',
@@ -172,6 +175,15 @@ export const dictionaries = {
       uploadHint: '先保存到你的个人灵感广场，后续可以再做公开审核和精选。',
       shareToLibrary: '分享到灵感库',
       shareFailed: '分享失败，请重试',
+      publicationHint: '默认仅自己可见。勾选公开后，其他登录用户可查看作品、完整提示词和生成参数；请勿包含私人信息。',
+      publicationConsent: '我确认公开分享到灵感广场。作者可撤回，但无法收回他人已下载或复制的内容。',
+      publishPublic: '公开分享到灵感广场',
+      savePrivate: '保存到个人灵感库',
+      shareImageUnavailable: '无法保存原图。请先下载原图并重新上传，避免分享后图片失效。',
+      shareUploadImage: '上传或替换原图',
+      withdrawPublication: '撤回公开分享',
+      withdrawConfirmation: '撤回这条公开分享？其他用户将无法继续查看，已下载或复制的内容无法收回。',
+      actionFailed: '操作未完成，请重试。',
       shareCreationTitle: '分享这张生成作品',
       shareCreationHint: '作品、完整提示词和生成参数会一起保存到你的用户灵感库。',
       sharePreview: '待分享作品',
@@ -863,6 +875,9 @@ export const dictionaries = {
     }
   },
   en: {
+    prompt: {
+      tooLong: 'The prompt exceeds 100,000 characters. Shorten it to continue; your text has not been truncated.'
+    },
     app: {
       title: 'Image Agent Studio',
       brand: 'Image Agent Studio',
@@ -1028,6 +1043,15 @@ export const dictionaries = {
       uploadHint: 'Save it to your personal inspiration gallery first; public review and curation can come later.',
       shareToLibrary: 'Share to Inspiration',
       shareFailed: 'Sharing failed. Please try again.',
+      publicationHint: 'Private by default. Publishing makes the creation, full prompt, and settings visible to other signed-in users. Do not include private information.',
+      publicationConsent: 'I confirm publication to the Inspiration square. I can withdraw it, but cannot recall copies others have downloaded or saved.',
+      publishPublic: 'Publish to Inspiration',
+      savePrivate: 'Save to my inspirations',
+      shareImageUnavailable: 'The original media could not be saved. Download it and upload the file here to avoid an expired image.',
+      shareUploadImage: 'Upload or replace original media',
+      withdrawPublication: 'Withdraw publication',
+      withdrawConfirmation: 'Withdraw this publication? Other users will no longer be able to view it. Downloaded or copied content cannot be recalled.',
+      actionFailed: 'The action did not complete. Please try again.',
       shareCreationTitle: 'Share this creation',
       shareCreationHint: 'The image, full prompt, and generation settings will be saved together in your inspiration library.',
       sharePreview: 'Creation to share',

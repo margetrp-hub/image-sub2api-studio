@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { atomicWriteJson } from './jsonFiles.js';
 import { readAssetSnapshot, restoreAssetSnapshot, validateAssetSnapshot } from './assetSnapshots.js';
+import { commitUserRestore, recoverUserRestore, restoreTransactionDir } from './restoreTransaction.js';
 
 export function createUserBackupService({
   serviceVersion,
@@ -9,8 +10,6 @@ export function createUserBackupService({
   normalizeRecordId,
   ensureUserDirs,
   backupsDir,
-  sessionPath,
-  sessionsDir,
   readRecords,
   writeRecords,
   readSessionSnapshot,
@@ -121,21 +120,24 @@ export function createUserBackupService({
 
   async function restoreUserBackup(auth, payload) {
     const snapshot = validateUserBackup(payload);
+    await recoverUserRestore(auth);
     const preRestore = await saveUserBackup(auth, 'pre-restore');
-    await ensureUserDirs(auth);
-    await writeRecords(auth, snapshot.records);
-    if (snapshot.session) {
-      await writeSession(auth, snapshot.session);
-    } else {
-      await fs.rm(sessionPath(auth), { force: true });
+    const stagedAuth = { ...auth, userDir: path.join(restoreTransactionDir(auth), 'staged') };
+    try {
+      await ensureUserDirs(stagedAuth);
+      await writeRecords(stagedAuth, snapshot.records);
+      if (snapshot.session) await writeSession(stagedAuth, snapshot.session);
+      for (const session of snapshot.sessions) {
+        await writeSession(stagedAuth, session, session.sessionId);
+      }
+      await writeJobs(stagedAuth, snapshot.jobs);
+      await writeCommunityPrompts(stagedAuth, snapshot.communityPrompts);
+      await restoreAssetSnapshot(stagedAuth, snapshot.assets);
+      await commitUserRestore(auth);
+    } catch (error) {
+      await recoverUserRestore(auth);
+      throw error;
     }
-    await fs.rm(sessionsDir(auth), { recursive: true, force: true });
-    for (const session of snapshot.sessions) {
-      await writeSession(auth, session, session.sessionId);
-    }
-    await writeJobs(auth, snapshot.jobs);
-    await writeCommunityPrompts(auth, snapshot.communityPrompts);
-    await restoreAssetSnapshot(auth, snapshot.assets);
     return {
       ok: true,
       restoredAt: new Date().toISOString(),

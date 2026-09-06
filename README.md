@@ -30,6 +30,13 @@ The root web application and Node Studio service remain the production-compatibl
 - Large history, template, and inspiration views render in batches to reduce browser pressure.
 - Legacy `VITE_SUB2API_*`, `SUB2API_*`, process names, and data paths remain only where existing deployments need them.
 
+## Sharing and data durability
+
+- New inspiration saves are private by default. Explicitly confirming publication shares the prompt, generation parameters, and media with other signed-in users; only the author can withdraw it. Existing private shares are not automatically published.
+- Published media has its own copy. New remote links must be uploaded (the browser attempts conversion when readable); expired or inaccessible links can be replaced in the sharing dialog. Deleting old source history first preserves media referenced by existing private shares.
+- Main prompt fields accept up to 100,000 JavaScript characters; larger values are rejected explicitly, not silently truncated. Provider-specific request limits still apply.
+- Personal backups do not include global public shares, and restoring a backup does not republish them. Restore uses a journal and whole-operation rollback after errors or process interruption; this is not an fsync/power-loss guarantee. The file backend still requires a single writer process.
+
 ## Architecture In Progress
 
 The next workstation is organized around projects, scenes, shots, and workflow continuity rather than isolated provider requests.

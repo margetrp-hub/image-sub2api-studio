@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { atomicWriteJson } from './jsonFiles.js';
-import { multilineText, text } from './text.js';
+import { multilineText, promptText, text } from './text.js';
 
 const GENERATION_FIELDS = [
   'mode',
@@ -30,8 +30,8 @@ function sanitizeGeneration(value) {
   const generation = Object.fromEntries(GENERATION_FIELDS
     .map((key) => [key, text(String(value[key] ?? ''), 160)])
     .filter(([, fieldValue]) => fieldValue));
-  const generationPrompt = multilineText(value.generationPrompt, 12000);
-  const negativePrompt = multilineText(value.negativePrompt, 4000);
+  const generationPrompt = promptText(value.generationPrompt);
+  const negativePrompt = promptText(value.negativePrompt);
   if (generationPrompt) generation.generationPrompt = generationPrompt;
   if (negativePrompt) generation.negativePrompt = negativePrompt;
   return generation;
@@ -39,12 +39,12 @@ function sanitizeGeneration(value) {
 
 function sanitizeCommunityImage(value) {
   const image = text(value, 1600);
-  return /^(?:https?:\/\/|\/studio-api\/(?:history|generation-jobs)\/)/i.test(image) ? image : '';
+  return /^(?:https?:\/\/|\/studio-api\/(?:history|generation-jobs|community-prompts)\/)/i.test(image) ? image : '';
 }
 
 export function sanitizeCommunityPrompt(value, fallback = {}) {
   const createdAt = text(value?.createdAt || fallback.createdAt || new Date().toISOString(), 60);
-  const prompt = multilineText(value?.prompt, 12000);
+  const prompt = promptText(value?.prompt);
   const title = text(value?.title || prompt.slice(0, 80) || 'Untitled prompt', 160);
   const category = text(value?.category || 'Community Prompts', 120);
   const id = text(value?.id || fallback.id || `share-${randomUUID()}`, 120);
@@ -56,7 +56,7 @@ export function sanitizeCommunityPrompt(value, fallback = {}) {
     kind: 'community-prompt',
     title,
     prompt,
-    generationPrompt: multilineText(value?.generationPrompt || value?.generation?.generationPrompt || prompt, 12000),
+    generationPrompt: promptText(value?.generationPrompt || value?.generation?.generationPrompt || prompt),
     promptPreview: text(value?.promptPreview || prompt, 800),
     category,
     image: sanitizeCommunityImage(value?.image || value?.image_url),
@@ -65,7 +65,7 @@ export function sanitizeCommunityPrompt(value, fallback = {}) {
     sourceName: text(value?.sourceName || 'User shared', 120),
     note: multilineText(value?.note || '', 800),
     tags: Array.isArray(value?.tags) ? value.tags.slice(0, 8).map((item) => text(item, 40)).filter(Boolean) : [],
-    visibility: value?.visibility === 'private' ? 'private' : 'workspace',
+    visibility: ['private', 'public'].includes(value?.visibility) ? value.visibility : 'workspace',
     createdAt,
     updatedAt: text(value?.updatedAt || createdAt, 60),
     reactions: { up, down },

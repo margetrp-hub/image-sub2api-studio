@@ -63,7 +63,7 @@ import {
   templateThumbnail
 } from '../util/templates.js';
 
-import { ProtectedHistoryThumb, ProtectedStudioImage } from './media.jsx';
+import { ProtectedHistoryThumb, ProtectedStudioImage, ProtectedStudioVideo } from './media.jsx';
 import '../../styles/studio.gallery-filters.css';
 import { Lightbox, ResultGrid, VideoLightbox, VideoResultGrid } from './resultDisplay.jsx';
 
@@ -106,7 +106,7 @@ function CategoryCard({ group, selected, onSelect }) {
   );
 }
 
-function CaseCard({ item, selected, onSelect, onPreview, favorite, onToggleFavorite, onAppend, t = (key, fallback) => fallback || key }) {
+function CaseCard({ item, selected, onSelect, onPreview, favorite, onToggleFavorite, onAppend, onReact, t = (key, fallback) => fallback || key }) {
   const image = templateThumbnail(item);
   const fallback = imageFallback(item);
   const hasPreviewImage = hasLibraryPreviewImage(item);
@@ -135,7 +135,7 @@ function CaseCard({ item, selected, onSelect, onPreview, favorite, onToggleFavor
             onPreview(item);
           }}
         >
-          {item.generation?.mode === 'video' ? <video src={displayResultUrl(item.image)} muted playsInline preload="metadata" /> : (image || fallback) ? (
+          {item.generation?.mode === 'video' ? <ProtectedStudioVideo src={item.image} muted playsInline preload="metadata" /> : (image || fallback) ? (
             <ProtectedStudioImage
               src={image || fallback}
               fallbackSrc={image && fallback !== image ? fallback : ''}
@@ -169,6 +169,14 @@ function CaseCard({ item, selected, onSelect, onPreview, favorite, onToggleFavor
         </button>
       ) : null}
       <div className="caseTileActions">
+        {item.canWithdraw ? (
+          <button type="button" onClick={() => onReact?.(item, 'withdraw')} aria-label={t('gallery.withdrawPublication', '撤回公开分享')} title={t('gallery.withdrawPublication', '撤回公开分享')}>
+            <Trash2 size={13} />
+          </button>
+        ) : null}
+        <button type="button" onClick={() => onReact?.(item, 'share')} aria-label={t('gallery.shareToLibrary', '分享到灵感库')} title={t('gallery.shareToLibrary', '分享到灵感库')}>
+          <Share2 size={13} />
+        </button>
         {onAppend ? (
           <button
             type="button"
@@ -211,6 +219,11 @@ function PromptCaseCard({ item, selected, onSelect, onPreview, favorite, onToggl
         {meta ? <em>{meta}</em> : null}
       </button>
       <div className="communityPromptStats">
+        {item.canWithdraw ? (
+          <button type="button" onClick={() => onReact?.(item, 'withdraw')} aria-label={t('gallery.withdrawPublication', '撤回公开分享')} title={t('gallery.withdrawPublication', '撤回公开分享')}>
+            <Trash2 size={12} />
+          </button>
+        ) : null}
         <button type="button" aria-label={t('gallery.upvotePrompt', 'Upvote prompt')} className={item.userReaction === 'up' ? 'active' : ''} onClick={(event) => { event.stopPropagation(); onReact?.(item, 'up'); }}>
           <ThumbsUp size={12} />
           {item.reactions?.up || 0}
@@ -813,6 +826,7 @@ export function GalleryWorkspacePanel({
                 favorite={favoriteTemplates.has(templateKey(item))}
                 onToggleFavorite={onToggleTemplateFavorite}
                 onAppend={useLibraryItem}
+                onReact={onReactTemplate}
                 t={t}
                 key={item.id}
               />

@@ -42,7 +42,7 @@ async function request(pathname, options = {}) {
       'Content-Type': 'application/json',
       ...(options.headers || {})
     }
-  });
+  }).catch((error) => { throw new Error(`${options.method || 'GET'} ${pathname}: ${error.message}`, { cause: error }); });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.ok === false) {
     throw new Error(payload.error || `HTTP_${response.status}`);
@@ -156,13 +156,47 @@ try {
   assert(generated?.resolutionTier === '1K', 'Completed generation must retain resolution tier.');
   assert(generated?.referenceCount === 1, 'Completed generation must retain reference count.');
 
+  const changedSubmissions = [
+    {},
+    { images: [{ dataUrl: `data:image/png;base64,${Buffer.concat([Buffer.from(tinyPngBase64, 'base64'), Buffer.from('different')]).toString('base64')}` }] },
+    { request: { quality: 'high' } },
+    { request: { mode: 'video', route: 'video', model: 'sora-2', duration: 4 } },
+    { request: { mode: 'video', route: 'video', model: 'sora-2', duration: 8 } }
+  ];
+  const changedJobs = [];
+  for (let index = 0; index < changedSubmissions.length; index++) {
+    const changes = changedSubmissions[index];
+    const payload = {
+      ...body, ...changes,
+      request: {
+        ...body.request, ...changes.request,
+        sessionId: 'changed-input-session',
+        id: `changed-input-${index}`,
+        clientRequestId: `changed-input-client-${index}`
+      }
+    };
+    const result = await request('/studio-api/generation-jobs', { method: 'POST', body: JSON.stringify(payload) });
+    assert(!result.duplicate && result.job.id === payload.request.id, 'Different media or normalized parameters must not be collapsed by the same client fingerprint.', { index, result });
+    changedJobs.push(result.job.id);
+  }
+  assert(new Set(changedJobs).size === changedSubmissions.length, 'All distinct inputs should create distinct jobs.');
+  // Mock-only queued fixtures: cancel them so they cannot outlive this test.
+  for (const jobId of changedJobs) await request(`/studio-api/generation-jobs/${jobId}`, { method: 'DELETE' });
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await request('/studio-api/health');
+  assert(child.exitCode === null, 'Canceling queued or dispatching jobs must not terminate the service.');
+
   console.log(JSON.stringify({
     ok: true,
     createdJobId: first.job.id,
     duplicateJobId: second.job.id,
     gatewayHits,
-    jobCount: jobs.jobs.length
+    jobCount: jobs.jobs.length,
+    distinctInputJobs: changedJobs.length
   }, null, 2));
+} catch (error) {
+  if (stderr.trim()) console.error(stderr.trim());
+  throw error;
 } finally {
   if (child.exitCode === null) {
     const exited = once(child, 'exit');

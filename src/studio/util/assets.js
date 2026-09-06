@@ -30,6 +30,7 @@ export function isProtectedStudioAsset(url) {
   const value = String(url || '');
   return value.startsWith('/studio-api/history/')
     || value.startsWith('/studio-api/generation-jobs/')
+    || value.startsWith('/studio-api/community-prompts/')
     || value.startsWith('/studio-api/library-assets/');
 }
 

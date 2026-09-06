@@ -9,6 +9,8 @@ import { createServiceConfig } from './studio-service/config.js';
 import { createCommunityPromptStore, sanitizeCommunityPrompt } from './studio-service/communityPrompts.js';
 import { atomicWriteJson, parseJsonText } from './studio-service/jsonFiles.js';
 import { createKeyedLock } from './studio-service/keyedLock.js';
+import { serverJobFingerprint } from './studio-service/jobFingerprint.js';
+import { createPublicPromptStore } from './studio-service/publicPrompts.js';
 import {
   annotateProviderModels,
   applyProviderEndpoint,
@@ -20,8 +22,9 @@ import {
   providerProfile
 } from './studio-service/providerProfiles.js';
 import { createLoginFailureLimiter, createStandaloneAuthStore } from './studio-service/standaloneAuth.js';
-import { multilineText, text } from './studio-service/text.js';
+import { multilineText, promptText, text, validatePromptLengths } from './studio-service/text.js';
 import { createUserBackupService } from './studio-service/userBackup.js';
+import { recoverUserRestore } from './studio-service/restoreTransaction.js';
 import { createUserStorage } from './studio-service/userStorage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -533,8 +536,9 @@ async function readJsonBody(req, maxBytes = MAX_BODY_BYTES) {
   }
   if (!chunks.length) return {};
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
+    return validatePromptLengths(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+  } catch (failure) {
+    if (failure.message === 'PROMPT_TOO_LONG') throw failure;
     const error = new Error('INVALID_JSON');
     error.status = 400;
     throw error;
@@ -573,6 +577,15 @@ const {
   readCommunityPrompts,
   writeCommunityPrompts
 } = communityPromptStore;
+const publicPromptStore = createPublicPromptStore(path.join(DATA_DIR, 'community'));
+
+async function readVisibleCommunityPrompts(auth) {
+  if (!auth) return [];
+  const [own, published] = await Promise.all([readCommunityPrompts(auth), publicPromptStore.list(auth)]);
+  const publishedIds = new Set(published.map((item) => item.id));
+  return [...published, ...own.filter((item) => !publishedIds.has(item.id))
+    .map((item) => ({ ...item, visibility: 'private', canWithdraw: false }))];
+}
 
 function normalizeGatewayAccountPayload(payload) {
   if (payload && typeof payload === 'object' && 'code' in payload) {
@@ -1000,6 +1013,9 @@ async function storeResultUrl(auth, recordId, value, index) {
 
 async function storeSharedResultUrl(auth, shareId, value) {
   const raw = String(value || '').trim();
+  if (/^https?:\/\//i.test(raw)) {
+    throw Object.assign(new Error('SHARE_ASSET_REQUIRES_UPLOAD'), { status: 400 });
+  }
   if (!raw.startsWith('/studio-api/')) {
     const stored = await storeResultUrl(auth, shareId, raw, 0);
     if (raw && !stored) {
@@ -1055,7 +1071,7 @@ function protectedLibraryAssetUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   if (/^\/studio-api\/library-assets\//i.test(raw)) return raw;
-  if (/^\/studio-api\/history\/[a-zA-Z0-9_-]{8,80}\/assets\/[0-9]{1,3}\.(?:png|jpe?g|webp)$/i.test(raw)) return raw;
+  if (/^\/studio-api\/(?:history|community-prompts)\/[a-zA-Z0-9_-]{8,80}\/assets\/[0-9]{1,3}\.(?:png|jpe?g|webp|mp4|webm)$/i.test(raw)) return raw;
   if (/^(?:\.\/)?\/?images\//i.test(raw)) return `/studio-api/library-assets/${raw.replace(/^(?:\.\/)?\/?images\//i, '')}`;
   if (/^https?:\/\//i.test(raw)) return raw;
   return '';
@@ -1091,7 +1107,7 @@ function protectedLibraryThumbnailUrl(item) {
 
   const image = String(item.image || item.image_url || '').trim();
   const localImage = protectedLibraryAssetUrl(image);
-  if (/^(?:https?:\/\/|\/studio-api\/history\/)/i.test(localImage)) return localImage;
+  if (/^(?:https?:\/\/|\/studio-api\/(?:history|community-prompts)\/)/i.test(localImage)) return localImage;
   if (/(?:^|\/)thumbs\//i.test(image)) return localImage;
   const match = image.match(/^(?:\.\/)?\/?images\/(.+)\.(png|jpe?g)$/i);
   if (!match) return libraryAssetExists(localImage) ? localImage : '';
@@ -1112,6 +1128,8 @@ function sanitizeLibrarySummary(item) {
     sourceName: cleanSourceText(item.sourceName, 120),
     promptPreview: text(item.promptPreview, 160),
     kind: text(item.kind, 80),
+    visibility: item.visibility === 'public' ? 'public' : 'private',
+    canWithdraw: item.canWithdraw === true,
     category: text(item.category, 120),
     styles: Array.isArray(item.styles) ? item.styles.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : [],
     scenes: Array.isArray(item.scenes) ? item.scenes.slice(0, 8).map((value) => text(value, 80)).filter(Boolean) : [],
@@ -1126,7 +1144,7 @@ function sanitizeLibrarySummary(item) {
     createdAt: text(item.createdAt, 60),
     updatedAt: text(item.updatedAt, 60),
     note: multilineText(item.note, 800),
-    generationPrompt: multilineText(item.generationPrompt || item.generation?.generationPrompt, 12000),
+    generationPrompt: promptText(item.generationPrompt || item.generation?.generationPrompt),
     generation: item.generation && typeof item.generation === 'object' ? item.generation : {},
     reactions: item.reactions && typeof item.reactions === 'object' ? item.reactions : { up: 0, down: 0 },
     copied: Math.max(0, Number(item.copied || 0)),
@@ -1138,7 +1156,7 @@ function sanitizeLibrarySummary(item) {
 function sanitizeLibraryDetail(item) {
   return {
     ...sanitizeLibrarySummary(item),
-    prompt: multilineText(item.prompt, 12000)
+    prompt: promptText(item.prompt)
   };
 }
 
@@ -1154,7 +1172,7 @@ function sanitizePromptPresetSummary(item) {
 function sanitizePromptPresetDetail(item) {
   return {
     ...sanitizePromptPresetSummary(item),
-    prompt: multilineText(item.prompt, 12000)
+    prompt: promptText(item.prompt)
   };
 }
 
@@ -1177,8 +1195,8 @@ function sanitizeVideoInspirationSummary(item) {
 function sanitizeVideoInspirationDetail(item) {
   return {
     ...sanitizeVideoInspirationSummary(item),
-    prompt: multilineText(item.prompt, 12000),
-    negativePrompt: multilineText(item.negativePrompt, 4000)
+    prompt: promptText(item.prompt),
+    negativePrompt: promptText(item.negativePrompt)
   };
 }
 
@@ -1187,7 +1205,7 @@ async function readLibrary(auth = null) {
   const inspirationData = await readJsonFile(path.join(LIBRARY_DIR, 'inspirations.json'), { cases: [] });
   const localCases = Array.isArray(localData?.cases) ? localData.cases : [];
   const inspirationCases = Array.isArray(inspirationData?.cases) ? inspirationData.cases : [];
-  const communityCases = auth ? await readCommunityPrompts(auth) : [];
+  const communityCases = await readVisibleCommunityPrompts(auth);
   const rawCases = [...communityCases, ...localCases, ...inspirationCases].filter((item) => item && item.id !== undefined && item.id !== null);
   const cases = rawCases.map(sanitizeLibrarySummary);
   return {
@@ -1236,7 +1254,7 @@ function sanitizeAssistantMessages(items) {
       id: text(item.id || randomUUID(), 120),
       role: item.role === 'assistant' ? 'assistant' : 'user',
       content: text(item.content, 8000),
-      finalPrompt: multilineText(item.finalPrompt, 12000),
+      finalPrompt: promptText(item.finalPrompt),
       pending: Boolean(item.pending),
       failed: Boolean(item.failed)
     }))
@@ -1254,7 +1272,7 @@ function sanitizePromptSuggestion(value) {
     details: text(value.details, 3000),
     textRules: text(value.textRules, 2000),
     constraints: text(value.constraints, 3000),
-    finalPrompt: multilineText(value.finalPrompt, 12000),
+    finalPrompt: promptText(value.finalPrompt),
     raw: text(value.raw, 16000)
   };
   return Object.values(suggestion).some(Boolean) ? suggestion : null;
@@ -1278,7 +1296,7 @@ function sanitizeDownloadMeta(value) {
     mode: text(value.mode || 'image', 40),
     providerId: text(value.providerId, 160),
     createdAt: value.createdAt && !Number.isNaN(Date.parse(value.createdAt)) ? value.createdAt : '',
-    prompt: multilineText(value.prompt, 12000),
+    prompt: promptText(value.prompt),
     id: text(value.id, 160)
   };
 }
@@ -1320,8 +1338,8 @@ async function sanitizeCanvasNodes(auth, nodes, assetIndex, assetId = sessionAss
       url,
       persistedUrl: url,
       sourceUrl: text(node.sourceUrl, 1200),
-      prompt: multilineText(node.prompt, 12000),
-      generationPrompt: multilineText(node.generationPrompt || node.prompt, 12000),
+      prompt: promptText(node.prompt),
+      generationPrompt: promptText(node.generationPrompt || node.prompt),
       workflow: sanitizeWorkflow(node.workflow),
       title: text(node.title, 160),
       x: Number.isFinite(x) ? Math.max(-8000, Math.min(8000, x)) : 0,
@@ -1366,7 +1384,7 @@ function sanitizeGenerationQueue(items) {
       providerFamily: text(item.providerFamily || item.providerId || item.provider || '', 160),
       apiKeySource: text(item.apiKeySource || '', 60),
       providerLabel: text(item.providerLabel || '', 160),
-      prompt: multilineText(item.prompt, 12000),
+      prompt: promptText(item.prompt),
       model: text(item.model, 160),
       aspect: text(item.aspect || item.aspectRatio, 40),
       aspectRatio: text(item.aspectRatio || item.aspect, 40),
@@ -1427,7 +1445,7 @@ async function sanitizeSession(auth, body) {
     updatedAt: new Date().toISOString(),
     sessionId,
     mode: text(body.mode || 'image', 40),
-    prompt: multilineText(body.prompt, 12000),
+    prompt: promptText(body.prompt),
     model: text(body.model, 160),
     results,
     videoResults,
@@ -1470,8 +1488,8 @@ async function sanitizeRecord(auth, body) {
     providerFamily: text(body.providerFamily || body.providerId || body.provider || '', 160),
     apiKeySource: text(body.apiKeySource || '', 60),
     providerLabel: text(body.providerLabel || '', 160),
-    prompt: multilineText(body.prompt, 12000),
-    generationPrompt: multilineText(body.generationPrompt || body.prompt, 12000),
+    prompt: promptText(body.prompt),
+    generationPrompt: promptText(body.generationPrompt || body.prompt),
     workflow: sanitizeWorkflow(body.workflow),
     model: text(body.model, 120),
     size: text(body.size, 40),
@@ -1487,7 +1505,7 @@ async function sanitizeRecord(auth, body) {
     videoMotion: text(body.videoMotion || body.motion, 160),
     videoStyle: text(body.videoStyle, 160),
     videoQuality: text(body.videoQuality, 160),
-    negativePrompt: multilineText(body.negativePrompt, 4000),
+    negativePrompt: promptText(body.negativePrompt),
     referenceCount: Math.max(0, Number(body.referenceCount) || 0),
     requestIds: Array.isArray(body.requestIds) ? body.requestIds.slice(0, 8).map((value) => text(value, 160)).filter(Boolean) : [],
     usageSummary: text(body.usageSummary || body.costSummary || '', 240),
@@ -1515,11 +1533,11 @@ function sanitizeWorkflow(workflow) {
         nodeId: text(step?.nodeId, 160),
         mode: text(step?.mode || 'image', 40),
         route: text(step?.route || '', 80),
-        prompt: multilineText(step?.prompt, 12000)
+        prompt: promptText(step?.prompt)
       }))
       .filter((step) => step.prompt)
     : [];
-  const rootPrompt = multilineText(workflow.rootPrompt, 12000);
+  const rootPrompt = promptText(workflow.rootPrompt);
   if (!rootPrompt && !lineage.length) return null;
   return { rootPrompt, lineage };
 }
@@ -1657,7 +1675,7 @@ async function handleStandalonePromptRoute(req, res, parts, userId) {
   }
   const body = await readJsonBody(req);
   if (parts[2] === 'optimize') {
-    const prompt = multilineText(body.prompt, 12_000);
+    const prompt = promptText(body.prompt);
     if (!prompt) return sendJson(res, 400, { ok: false, error: 'PROMPT_REQUIRED' });
     const instruction = text(body.instruction, 4_000);
     const result = await providerChatCompletion({
@@ -1680,10 +1698,10 @@ async function handleStandalonePromptRoute(req, res, parts, userId) {
   }
   if (parts[2] === 'assistant') {
     const messages = sanitizeChatMessages(body.messages);
-    const prompt = multilineText(body.prompt, 12_000);
+    const prompt = promptText(body.prompt);
     const instruction = text(body.userInstruction || body.instruction, 4_000);
     const context = [
-      body.basePrompt ? `Canvas base prompt:\n${multilineText(body.basePrompt, 12_000)}` : '',
+      body.basePrompt ? `Canvas base prompt:\n${promptText(body.basePrompt)}` : '',
       body.selectedCanvasLabel ? `Selected canvas: ${text(body.selectedCanvasLabel, 500)}` : '',
       body.aspectRatio || body.size || body.resolutionTier || body.quality
         ? `Image parameters: ${[body.aspectRatio, body.size, body.resolutionTier, body.quality].map((item) => text(item, 100)).filter(Boolean).join(', ')}`
@@ -2097,8 +2115,8 @@ function buildJobRecord(body) {
     apiKeySource: text(request.apiKeySource || '', 60),
     providerLabel: text(request.providerLabel || '', 160),
     model: text(request.model, 160),
-    prompt: multilineText(request.prompt, 12000),
-    generationPrompt: multilineText(request.generationPrompt || request.prompt, 12000),
+    prompt: promptText(request.prompt),
+    generationPrompt: promptText(request.generationPrompt || request.prompt),
     workflow: sanitizeWorkflow(request.workflow),
     size: text(request.size || 'auto', 40),
     quality: text(request.quality || 'auto', 40),
@@ -2113,7 +2131,7 @@ function buildJobRecord(body) {
     motion: text(request.motion || request.videoMotion || '', 80),
     videoStyle: text(request.style || request.videoStyle || '', 80),
     videoQuality: text(request.videoQuality || request.quality || '', 40),
-    negativePrompt: multilineText(request.negativePrompt || '', 4000),
+    negativePrompt: promptText(request.negativePrompt),
     count,
     completed: 0,
     total: count,
@@ -2244,6 +2262,7 @@ async function writeHistoryRecordForJob(auth, job) {
 }
 
 async function postJsonToGateway(url, apiKey, body, clientRequestId, signal) {
+  signal?.throwIfAborted();
   const response = await undiciFetch(url, {
     method: 'POST',
     headers: {
@@ -2260,6 +2279,7 @@ async function postJsonToGateway(url, apiKey, body, clientRequestId, signal) {
 }
 
 async function postMultipartToGateway(url, apiKey, form, clientRequestId, signal) {
+  signal?.throwIfAborted();
   const response = await undiciFetch(url, {
     method: 'POST',
     headers: {
@@ -2556,6 +2576,22 @@ async function drainGenerationQueue(userKey) {
   queue.draining = false;
 }
 
+async function preserveLegacySharedAssets(auth, recordIds) {
+  const ids = new Set(recordIds);
+  const items = await readCommunityPrompts(auth);
+  let changed = false;
+  for (const item of items) {
+    const match = String(item.image || '').match(/^\/studio-api\/(?:history|generation-jobs)\/([A-Za-z0-9_-]{8,160})\/assets\//);
+    if (!match || !ids.has(match[1]) || match[1] === item.id) continue;
+    // Legacy metadata allowed punctuation that is not a valid asset directory.
+    // A separate safe asset id preserves the existing inspiration id.
+    const assetId = /^[A-Za-z0-9_-]{8,160}$/.test(item.id) ? item.id : `share-${randomUUID()}`;
+    item.image = await storeSharedResultUrl(auth, assetId, item.image);
+    changed = true;
+  }
+  if (changed) await writeCommunityPrompts(auth, items);
+}
+
 async function removeRecordAssets(auth, recordId) {
   const assetsRoot = path.resolve(auth.userDir, 'assets');
   const assetDir = path.resolve(assetsRoot, requireRecordId(recordId));
@@ -2620,7 +2656,7 @@ async function serveAsset(req, res, auth, parts) {
       'Content-Length': end - start + 1,
       'Content-Range': `bytes ${start}-${end}/${stat.size}`,
       'Accept-Ranges': 'bytes',
-      'Cache-Control': 'private, max-age=3600'
+      'Cache-Control': auth.publication ? 'private, no-store' : 'private, max-age=3600'
     });
     createReadStream(filePath, { start, end }).pipe(res);
     return;
@@ -2629,7 +2665,7 @@ async function serveAsset(req, res, auth, parts) {
     'Content-Type': mime,
     'Content-Length': stat.size,
     ...(isVideo ? { 'Accept-Ranges': 'bytes' } : {}),
-    'Cache-Control': 'private, max-age=3600'
+    'Cache-Control': auth.publication ? 'private, no-store' : 'private, max-age=3600'
   });
   createReadStream(filePath).pipe(res);
 }
@@ -3006,8 +3042,15 @@ async function handler(req, res) {
     const auth = await authenticate(req);
     // Lock the whole read/modify/write operation, including shared asset copies.
     // Generation runners take the same lock only when committing their history.
-    if (['history', 'session', 'community-prompts', 'backup', 'generation-jobs'].includes(parts[1])) {
+    if (['history', 'session', 'community-prompts', 'backup', 'generation-jobs', 'library'].includes(parts[1])) {
       releaseUserData = await userDataLocks.acquire(auth.userKey);
+      await recoverUserRestore(auth);
+    }
+
+    if (req.method === 'GET' && parts[1] === 'community-prompts' && parts[3] === 'assets' && parts.length === 5) {
+      const assetAuth = await publicPromptStore.assetAuth(auth, parts[2], parts[4]);
+      if (!assetAuth) return sendJson(res, 404, { ok: false, error: 'ASSET_NOT_FOUND' });
+      return serveAsset(req, res, assetAuth, ['studio-api', 'history', parts[2], 'assets', parts[4]]);
     }
 
     if (parts[1] === 'prompt') {
@@ -3099,6 +3142,7 @@ async function handler(req, res) {
           throw error;
         }
         runtime.plan = buildJobInvocationPlan(job, runtime);
+        job.fingerprint = serverJobFingerprint(job, runtime, body.request || body);
         job.endpoint = providerPublicEndpoint(runtime.plan.endpoint);
         job.invocationAdapter = runtime.plan.adapter;
         if (job.fingerprint) {
@@ -3190,13 +3234,16 @@ async function handler(req, res) {
     }
 
     if (req.method === 'GET' && parts[0] === 'studio-api' && parts[1] === 'community-prompts' && parts.length === 2) {
-      const items = await readCommunityPrompts(auth);
+      const items = await readVisibleCommunityPrompts(auth);
       return sendJson(res, 200, { ok: true, items });
     }
 
     if (req.method === 'POST' && parts[0] === 'studio-api' && parts[1] === 'community-prompts' && parts.length === 2) {
       const body = await readJsonBody(req);
-      const prompt = multilineText(body.prompt, 12000);
+      if (body.visibility === 'public' && body.publicationConfirmed !== true) {
+        return sendJson(res, 400, { ok: false, error: 'PUBLICATION_CONFIRMATION_REQUIRED' });
+      }
+      const prompt = promptText(body.prompt);
       if (!prompt) return sendJson(res, 400, { ok: false, error: 'PROMPT_REQUIRED' });
       const now = new Date().toISOString();
       const id = `share-${randomUUID()}`;
@@ -3213,20 +3260,38 @@ async function handler(req, res) {
         imageAlt: body.imageAlt,
         generation: body.generation,
         tags: body.tags,
-        visibility: body.visibility,
+        visibility: body.visibility === 'public' ? 'public' : 'private',
         createdAt: now,
         updatedAt: now,
-        sourceName: auth.user?.username || auth.user?.email || 'User shared'
+        sourceName: 'User shared'
       });
+      if (body.visibility === 'public') {
+        try {
+          const published = await publicPromptStore.publish(auth, item);
+          return sendJson(res, 200, { ok: true, item: published });
+        } finally {
+          // Publication owns an independent global copy, not this staging asset.
+          await fs.rm(path.join(auth.userDir, 'assets', id), { recursive: true, force: true }).catch(() => {});
+        }
+      }
       const items = await readCommunityPrompts(auth);
       const nextItems = await writeCommunityPrompts(auth, [item, ...items.filter((entry) => entry.id !== item.id)]);
       return sendJson(res, 200, { ok: true, item: nextItems[0] });
+    }
+
+    if (req.method === 'DELETE' && parts[1] === 'community-prompts' && parts.length === 3) {
+      await publicPromptStore.withdraw(auth, cleanLibraryId(decodeURIComponent(parts[2])));
+      return sendJson(res, 200, { ok: true });
     }
 
     if (req.method === 'POST' && parts[0] === 'studio-api' && parts[1] === 'community-prompts' && parts.length === 4 && parts[3] === 'reaction') {
       const id = cleanLibraryId(decodeURIComponent(parts[2]));
       const body = await readJsonBody(req);
       const action = text(body.action, 20);
+      if (/^share-[a-f0-9-]{36}$/.test(parts[2])) {
+        const published = await publicPromptStore.react(auth, id, action);
+        if (published) return sendJson(res, 200, { ok: true, item: published });
+      }
       const items = await readCommunityPrompts(auth);
       const index = items.findIndex((item) => String(item.id) === id);
       if (index < 0) return sendJson(res, 404, { ok: false, error: 'COMMUNITY_PROMPT_NOT_FOUND' });
@@ -3289,6 +3354,7 @@ async function handler(req, res) {
 
     if (req.method === 'DELETE' && parts.length === 2) {
       const records = await readRecords(auth);
+      await preserveLegacySharedAssets(auth, records.map((record) => record.id));
       await Promise.all(records.map((record) => removeRecordAssets(auth, record.id)));
       await writeRecords(auth, []);
       return sendJson(res, 200, { ok: true });
@@ -3297,6 +3363,7 @@ async function handler(req, res) {
     if (req.method === 'DELETE' && parts.length === 3) {
       const recordId = cleanRecordId(parts[2]);
       const records = await readRecords(auth);
+      await preserveLegacySharedAssets(auth, [recordId]);
       await removeRecordAssets(auth, recordId);
       await writeRecords(auth, records.filter((item) => item.id !== recordId));
       return sendJson(res, 200, { ok: true });

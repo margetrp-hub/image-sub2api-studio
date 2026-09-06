@@ -29,11 +29,11 @@ try {
 
   await page.addInitScript(() => {
     window.__communitySmoke = { clipboard: [] };
-    navigator.clipboard = {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
       writeText: async (value) => {
         window.__communitySmoke.clipboard.push(value);
       }
-    };
+    } });
   });
 
   await page.route('**/studio-api/**', async (route) => {
@@ -58,12 +58,16 @@ try {
     if (path === '/studio-api/community-prompts' && route.request().method() === 'POST') {
       const body = route.request().postDataJSON();
       const item = {
-        id: 'share-smoke-1',
+        id: `share-smoke-${communityItems.length + 1}`,
         kind: 'community-prompt',
         title: body.title,
         category: body.category || 'Community Prompts',
         prompt: body.prompt,
         promptPreview: body.prompt,
+        image: body.image || '',
+        generation: body.generation || {},
+        visibility: body.visibility,
+        canWithdraw: body.visibility === 'public' && body.publicationConfirmed === true,
         sourceName: 'User shared',
         reactions: { up: 0, down: 0 },
         copied: 0,
@@ -72,6 +76,10 @@ try {
       };
       communityItems = [item, ...communityItems];
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, item }) });
+    }
+    if (path.startsWith('/studio-api/community-prompts/') && route.request().method() === 'DELETE') {
+      communityItems = communityItems.filter((item) => path !== `/studio-api/community-prompts/${item.id}`);
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
     }
     if (path === '/studio-api/community-prompts/share-smoke-1/reaction' && route.request().method() === 'POST') {
       const { action } = route.request().postDataJSON();
@@ -114,7 +122,7 @@ try {
   await page.goto(new URL('studio.html', baseUrl).toString(), { waitUntil: 'networkidle' });
   await page.locator('[data-workspace="inspiration"]').first().click();
   await page.locator('.uploadInspirationButton').first().click();
-  await page.locator('.inspirationUploadPanel input').first().fill('Smoke shared prompt');
+  await page.locator('.inspirationUploadPanel input[type="text"]').first().fill('Smoke shared prompt');
   await page.locator('.inspirationUploadPanel textarea').first().fill('A refined shared prompt for a clean product poster with soft light. Keep the original subject and composition. Resolution: 1K.');
   await page.locator('.inspirationUploadPanel button[type="submit"]').click();
   await page.waitForSelector('.promptOnlyZone .caseTile.promptOnly', { timeout: 8000 });
@@ -159,12 +167,38 @@ try {
     upText: document.querySelector('.communityPromptStats button')?.textContent || '',
     copyText: document.querySelectorAll('.communityPromptStats button')[2]?.textContent || '',
     copied: window.__communitySmoke.clipboard.length,
-    body: document.body.innerText
+    body: document.body.innerText.slice(0, 1200)
   }));
   assert(result.hasUploadButton, 'Upload inspiration button should render.', result);
   assert(result.hasPromptCard, 'Created community prompt should render in prompt zone.', result);
   assert(result.upText.includes('1'), 'Upvote should update the card count.', result);
   assert(result.copyText.includes('1'), 'Copy action should update the card count.', result);
+
+  await page.locator('.communityPromptStats button').nth(3).click();
+  await page.waitForSelector('.inspirationUploadPanel');
+  assert(await page.locator('.inspirationUploadPanel input[type="checkbox"]').isChecked() === false, 'Opening share must not opt in to publication.');
+  assert(await page.locator('.inspirationUploadPanel textarea').first().inputValue() === communityItems[0].prompt, 'Internal share dialog must receive the full prompt.');
+  await page.locator('.inspirationUploadPanel textarea').first().fill('x'.repeat(100001));
+  assert(await page.locator('.inspirationUploadPanel button[type="submit"]').isDisabled(), 'Oversized prompts must be blocked without truncation.');
+  assert((await page.locator('.inspirationUploadPanel textarea').first().inputValue()).length === 100001, 'Input must keep pasted text for editing.');
+  await page.locator('.inspirationUploadPanel textarea').first().fill('Long public prompt.\n  Preserve indentation.\n'.repeat(700).trim());
+  await page.locator('.inspirationUploadPanel input[type="file"]').setInputFiles({
+    name: 'fixture.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=', 'base64')
+  });
+  await page.locator('.inspirationUploadPanel input[type="checkbox"]').check();
+  await page.setViewportSize({ width: 390, height: 700 });
+  const dialogBounds = await page.locator('.inspirationUploadPanel').boundingBox();
+  const submitBounds = await page.locator('.inspirationUploadPanel button[type="submit"]').boundingBox();
+  assert(dialogBounds.x >= 0 && dialogBounds.width <= 390 && submitBounds.y + submitBounds.height <= 700, 'Mobile share dialog and submit action must fit the viewport.', { dialogBounds, submitBounds });
+  await page.locator('.inspirationUploadPanel button[type="submit"]').click();
+  await page.waitForSelector('.inspirationUploadPanel', { state: 'hidden' });
+  assert(communityItems[0].visibility === 'public' && communityItems[0].canWithdraw, 'Publication must send explicit confirmation.');
+  assert(communityItems[0].prompt.length > 12000 && communityItems[0].image.startsWith('data:image/png;base64,'), 'Public media and full prompt must be submitted durably.');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '撤回公开分享', exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('[aria-label="撤回公开分享"]'));
+  assert(communityItems.length === 1 && communityItems[0].visibility === 'private', 'Withdraw should remove only the chosen public item.');
 
   console.log(JSON.stringify({ ok: true, result }, null, 2));
 } finally {

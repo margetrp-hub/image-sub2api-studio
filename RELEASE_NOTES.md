@@ -1,5 +1,24 @@
 ﻿# Release Notes
 
+## 1.0.28
+
+This release makes inspiration publishing explicit and strengthens data durability.
+
+- Saves remain private by default. Confirmed public shares are visible across signed-in accounts, support per-user voting and author withdrawal, and never expose account identifiers.
+- Public media owns an independent copy. New remote links are converted to uploads when readable, with replacement uploads for expired links. Deleting old history preserves media used by existing private shares.
+- Main prompt fields preserve up to 100,000 JavaScript characters and reject larger inputs explicitly instead of truncating them at 12,000.
+- Task deduplication includes reference content, masks, provider settings, and video parameters; the service computes its own SHA-256 fingerprint instead of trusting the browser.
+- Backup restores use a staged journal and whole-operation rollback after failures or process interruption. Personal restores do not republish global shares.
+- Requests check cancellation before dispatch, avoiding a pre-aborted multipart upload crash.
+- Minimal development dependency updates address the reported xmldom and fast-uri audit findings.
+
+Verification coverage includes cross-account publication/access/withdrawal, concurrent voting,
+prompt boundaries, media lifetime, input-aware deduplication, mobile sharing controls, and
+restore failure/process-exit injection at all 11 file-switch positions. The file backend
+still requires a single writer. Restore is not an fsync/power-loss transaction; existing
+private shares are not automatically published. Real paid generation and Go compilation
+are outside this release's verification.
+
 ## 1.0.27
 
 This release hardens persistence, shared media, backup validation, and preview dialogs.
